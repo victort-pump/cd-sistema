@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CD Sistema — Agência</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <span class="logo">CD Sistema</span>
+  <button data-page="dashboard"  onclick="setPage('dashboard')"  class="active">Dashboard</button>
+  <button data-page="tarefas"    onclick="setPage('tarefas')">Tarefas</button>
+  <button data-page="calendario" onclick="setPage('calendario')">Calendário</button>
+  <button data-page="equipe"     onclick="setPage('equipe')">Equipe</button>
+  <button data-page="clientes"   onclick="setPage('clientes')">Clientes</button>
+  <button data-page="framework"  onclick="setPage('framework')">Framework</button>
+  <button data-page="gerador"    onclick="setPage('gerador')">Criação de Demandas</button>
+  <button data-page="integracao" onclick="setPage('integracao')" style="margin-left:auto">⚡ ClickUp</button>
+</nav>
+
+<!-- ====== DASHBOARD ====== -->
+<div class="page active" id="page-dashboard">
+  <div class="flex-between mb-20">
+    <div>
+      <div class="section-title mb-4">Visão Geral</div>
+      <div class="text-muted text-sm" id="dash-date"></div>
+      <div class="text-xs text-faint mt-4" id="dash-sync-info"></div>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('task')">+ Nova Tarefa</button>
+  </div>
+
+  <div id="dash-hoje"></div>
+  <div class="grid grid-4 mb-20" id="kpi-cards"></div>
+
+  <div class="mb-20">
+    <div class="section-title">Metas da Semana</div>
+    <div id="metas-list"></div>
+  </div>
+
+  <div class="grid grid-2 gap-16 mb-20">
+    <div>
+      <div class="section-title">Status dos Clientes</div>
+      <div id="client-status-list"></div>
+    </div>
+    <div>
+      <div class="section-title">Fluxo de Aprovação</div>
+      <div id="approval-flow"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Tarefas da Semana</div>
+    <div class="table-wrap" id="dash-week-tasks"></div>
+  </div>
+</div>
+
+<!-- ====== TAREFAS ====== -->
+<div class="page" id="page-tarefas">
+  <div class="flex-between mb-16">
+    <div class="section-title mb-0">Todas as Tarefas</div>
+    <button class="btn btn-primary" onclick="openModal('task')">+ Nova Tarefa</button>
+  </div>
+  <div id="task-filters" class="mb-16"></div>
+  <div class="table-wrap" id="tasks-table"></div>
+</div>
+
+<!-- ====== CALENDÁRIO ====== -->
+<div class="page" id="page-calendario">
+  <div class="week-nav">
+    <button class="btn btn-ghost btn-sm" onclick="changeWeek(-1)">← Anterior</button>
+    <span class="week-label" id="week-label"></span>
+    <button class="btn btn-ghost btn-sm" onclick="changeWeek(1)">Próxima →</button>
+  </div>
+  <div class="filters mb-16">
+    <button class="filter-btn active" onclick="setCalFilter('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="setCalFilter('producao',this)">Produção</button>
+    <button class="filter-btn" onclick="setCalFilter('postagem',this)">Postagem</button>
+  </div>
+  <div class="cal-grid mb-20" id="cal-grid"></div>
+  <div class="grid grid-2 gap-16">
+    <div>
+      <div class="section-title">Carga por Pessoa</div>
+      <div id="person-load"></div>
+    </div>
+    <div>
+      <div class="section-title">Gargalos da Semana</div>
+      <div id="bottlenecks"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== EQUIPE ====== -->
+<div class="page" id="page-equipe">
+  <div class="section-title">Equipe</div>
+  <div class="grid grid-3 gap-16 mb-24" id="team-grid"></div>
+  <div class="section-title">Ranking de Revisões <span class="badge">meta: &lt; 1.5 por tarefa</span></div>
+  <div class="table-wrap" id="revision-table"></div>
+  <div class="section-title mt-24">Conteúdo Atrasado por Pessoa</div>
+  <div id="overdue-by-person"></div>
+</div>
+
+<!-- ====== CLIENTES ====== -->
+<div class="page" id="page-clientes">
+  <div class="flex-between mb-16">
+    <div class="section-title mb-0">Clientes</div>
+    <button class="btn btn-ghost" onclick="openModal('client')">+ Novo Cliente</button>
+  </div>
+  <div class="grid grid-2 gap-16" id="clients-grid"></div>
+</div>
+
+<!-- ====== FRAMEWORK ====== -->
+<div class="page" id="page-framework">
+  <div class="filters mb-16" id="fw-tabs">
+    <button class="filter-btn active" onclick="setFwTab('semana',this)">Semana Ideal</button>
+    <button class="filter-btn" onclick="setFwTab('rotina',this)">Rotina Diária</button>
+    <button class="filter-btn" onclick="setFwTab('regras',this)">Regras &amp; Reuniões</button>
+  </div>
+  <div id="fw-semana" class="fw-panel"></div>
+  <div id="fw-rotina" class="fw-panel" style="display:none"></div>
+  <div id="fw-regras" class="fw-panel" style="display:none"></div>
+</div>
+
+<!-- ====== GERADOR MENSAL ====== -->
+<div class="page" id="page-gerador">
+  <div class="flex-between mb-20">
+    <div>
+      <div class="section-title mb-4">Gerador de Tarefas</div>
+      <div class="text-muted text-sm">Crie tarefas com subtarefas e responsáveis automáticos</div>
+    </div>
+  </div>
+  <div id="gerador-content"></div>
+</div>
+
+<!-- ====== INTEGRAÇÃO CLICKUP ====== -->
+<div class="page" id="page-integracao">
+  <div class="flex-between mb-20">
+    <div>
+      <div class="section-title mb-4">Integração ClickUp</div>
+      <div class="text-muted text-sm">ClickUp como fonte de verdade — elimina atualização manual</div>
+    </div>
+  </div>
+  <div id="int-status"></div>
+  <div class="grid grid-2 gap-16">
+    <div>
+      <div id="int-config"></div>
+      <div id="int-errors"></div>
+    </div>
+    <div id="int-mappings"></div>
+  </div>
+</div>
+
+<!-- ====== MODAL TAREFA ====== -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-task-title">Nova Tarefa</h2>
+      <button class="modal-close" onclick="closeModal('task')">×</button>
+    </div>
+    <div class="form-group mb-16">
+      <label>Título <span class="text-faint text-xs">(opcional — ex: Janela Guilhotina)</span></label>
+      <input type="text" id="t-nome" placeholder="Tema ou descrição livre da demanda">
+    </div>
+    <div class="grid grid-2 gap-16">
+      <div class="form-group">
+        <label>Cliente</label>
+        <select id="t-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="t-tipo">
+          <option value="copy">Copy</option>
+          <option value="design">Design</option>
+          <option value="video">Vídeo/Reels</option>
+          <option value="dark">Dark Post</option>
+          <option value="revisao">Revisão</option>
+          <option value="postagem">Postagem</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subtipo</label>
+        <select id="t-subtipo">
+          <option value="feed1">Feed 1</option>
+          <option value="feed2">Feed 2</option>
+          <option value="reels">Reels</option>
+          <option value="stories">Stories</option>
+          <option value="geral">Geral</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Responsável</label>
+        <select id="t-responsavel"></select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="t-status">
+          <option value="pendente">Pendente</option>
+          <option value="em_andamento">Em Andamento</option>
+          <option value="revisao">Em Revisão</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="concluido">Concluído</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Revisões</label>
+        <input type="number" id="t-revisoes" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Prazo de Entrega</label>
+        <input type="date" id="t-prazo">
+      </div>
+      <div class="form-group">
+        <label>Data de Postagem</label>
+        <input type="date" id="t-postagem">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observações / Briefing</label>
+      <textarea id="t-obs" placeholder="Detalhes, links, referências..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('task')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTask()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL CLIENTE ====== -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Novo Cliente</h2>
+      <button class="modal-close" onclick="closeModal('client')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Nome do Cliente</label>
+      <input type="text" id="c-nome" placeholder="Ex: Arquitetura Ideal">
+    </div>
+    <div class="form-group">
+      <label>Sigla (ID)</label>
+      <input type="text" id="c-sigla" placeholder="Ex: AI" maxlength="4">
+    </div>
+    <div class="form-group">
+      <label>Nicho</label>
+      <input type="text" id="c-nicho" placeholder="Ex: Arquitetura">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('client')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveClient()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL DETALHE TAREFA ====== -->
+<div class="modal-overlay" id="modal-task-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Detalhe da Tarefa</h2>
+      <button class="modal-close" onclick="closeModal('task-detail')">×</button>
+    </div>
+    <div id="task-detail-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="task-detail-delete">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('task-detail')">Fechar</button>
+      <button class="btn btn-primary" id="task-detail-edit">Editar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js?v=20260327j"></script>
+<script src="js/utils.js?v=20260327j"></script>
+<script src="js/clickup.js?v=20260327j"></script>
+<script src="js/pages.js?v=20260327j"></script>
+<script src="js/app.js?v=20260327j"></script>
+</body>
+</html>
