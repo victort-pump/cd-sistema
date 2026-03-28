@@ -31,6 +31,35 @@ async function cuPost(endpoint, body) {
   return res.json();
 }
 
+async function cuPut(endpoint, body) {
+  const cfg = getClickUpCfg();
+  if (!cfg.token) throw new Error('Token não configurado');
+  const res = await fetch(CU_BASE + endpoint, {
+    method: 'PUT',
+    headers: { 'Authorization': cfg.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.err || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function cuDeleteReq(endpoint) {
+  const cfg = getClickUpCfg();
+  if (!cfg.token) throw new Error('Token não configurado');
+  const res = await fetch(CU_BASE + endpoint, {
+    method: 'DELETE',
+    headers: { 'Authorization': cfg.token, 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.err || `HTTP ${res.status}`);
+  }
+  return res.status === 204 ? {} : res.json().catch(() => ({}));
+}
+
 async function cuGetWorkspaceMembers(workspaceId) {
   const data = await cuFetch(`/team/${workspaceId}`);
   return (data.team?.members || []).map(m => m.user);
@@ -70,11 +99,12 @@ async function cuGetAllLists(spaceId) {
   return [...folderless, ...fromFolders];
 }
 
-async function cuGetTasks(listId) {
+async function cuGetTasks(listId, fromDateMs) {
   const all = [];
   let page = 0;
+  const dateFilter = fromDateMs ? `&due_date_gt=${fromDateMs}` : '';
   while (true) {
-    const data = await cuFetch(`/list/${listId}/task?include_closed=true&subtasks=true&order_by=due_date&page=${page}`);
+    const data = await cuFetch(`/list/${listId}/task?include_closed=true&subtasks=true&order_by=due_date&page=${page}${dateFilter}`);
     const batch = data.tasks || [];
     all.push(...batch);
     if (batch.length < 100) break; // last page
@@ -83,7 +113,7 @@ async function cuGetTasks(listId) {
   return all;
 }
 
-// Map ClickUp status string → internal status
+// Map ClickUp status string ? internal status
 // Status reais deste workspace: pendente | copywriter | design | edição | aprovação | concluídos
 function cuMapStatus(cuStatus) {
   if (!cuStatus) return 'pendente';
@@ -92,10 +122,15 @@ function cuMapStatus(cuStatus) {
   if (/conclu|done|complet|feito|entregue/.test(s)) return 'concluido';
   // aprovado (já aprovado, não aguardando)
   if (/^aprovad|^approved/.test(s)) return 'aprovado';
-  // em revisão / aguardando aprovação
-  if (/aprovac|aprovação|review|revis|aguard/.test(s)) return 'revisao';
-  // em andamento — etapas ativas de produção
-  if (/copywriter|design|edicao|edição|gravac|progress|andamento|doing|fazendo/.test(s)) return 'em_andamento';
+  // reprovada
+  if (/reprov/.test(s)) return 'reprovado';
+  if (/descart/.test(s)) return 'descartado';
+  // aguardando aprovação do cliente (distinto de revisão interna)
+  if (/aprovac|aprovacao|aguard/.test(s)) return 'aprovacao';
+  // em revisão interna
+  if (/review|revis/.test(s)) return 'revisao';
+  // em andamento - etapas ativas de produção
+  if (/copywriter|design|edicao|edicao|gravac|progress|andamento|doing|fazendo/.test(s)) return 'em_andamento';
   return 'pendente';
 }
 
@@ -110,7 +145,7 @@ function cuInferTipo(name, tags) {
   return 'outro';
 }
 
-// Mapeamento explícito: username ClickUp → id interno
+// Mapeamento explícito: username ClickUp ? id interno
 // (baseado nos nomes reais encontrados no workspace)
 const CU_ASSIGNEE_MAP = {
   'victor turati':        'cd',
@@ -139,21 +174,33 @@ function cuMapAssignee(assignees) {
 }
 
 // Convert a ClickUp task to internal task format
-function cuMapTask(cuTask, clientId) {
+// existingTask: previous local version of this task (used to preserve/increment revision count)
+function cuMapTask(cuTask, clientId, existingTask) {
+  const newStatus = cuMapStatus(cuTask.status?.status);
+  const prevStatus = existingTask?.status;
+  const isRevStatus = s => s === 'revisao' || s === 'reprovado';
+
+  // Increment revision count when status transitions into revisao/reprovado from a non-revision state
+  let revisoes = existingTask?.revisoes || 0;
+  if (isRevStatus(newStatus) && prevStatus && !isRevStatus(prevStatus)) {
+    revisoes++;
+  }
+
   return {
-    id: 'cu_' + cuTask.id,
+    id: existingTask?.id || ('cu_' + cuTask.id),
     source: 'clickup',
     clickupId: cuTask.id,
     clickupUrl: cuTask.url,
     cliente: clientId,
     nome: cuTask.name,
     tipo: cuInferTipo(cuTask.name, cuTask.tags),
-    subtipo: 'geral',
+    subtipo: existingTask?.subtipo || 'geral',
     responsavel: cuMapAssignee(cuTask.assignees),
-    status: cuMapStatus(cuTask.status?.status),
+    status: newStatus,
     prazo: cuTask.due_date ? new Date(+cuTask.due_date).toISOString().split('T')[0] : '',
-    postagem: '',
-    revisoes: 0,
+    postagem: existingTask?.postagem || '',
+    revisoes,
+    motivosRevisao: existingTask?.motivosRevisao || [],
     obs: cuTask.description || '',
     updatedAt: new Date().toISOString(),
     createdAt: cuTask.date_created ? new Date(+cuTask.date_created).toISOString() : new Date().toISOString()
@@ -161,22 +208,31 @@ function cuMapTask(cuTask, clientId) {
 }
 
 // Main sync: fetch all configured lists, merge into local tasks
-async function cuSync() {
+async function cuSync(fromDateMs) {
   const cfg = getClickUpCfg();
   if (!cfg.token || !cfg.mappings || !cfg.mappings.length) {
     throw new Error('Configure o token e mapeamentos antes de sincronizar');
   }
 
-  let tasks = getTasks().filter(t => t.source !== 'clickup'); // keep only manual tasks
+  const allExisting = getTasks();
+  // For date-filtered sync, keep existing clickup tasks outside the filter range
+  let tasks = allExisting.filter(t => {
+    if (t.source !== 'clickup') return true; // always keep manual tasks
+    if (!fromDateMs) return false;           // global: drop all clickup tasks
+    // keep clickup tasks with prazo BEFORE the filter date (they won't come back)
+    const prazoMs = t.prazo ? new Date(t.prazo + 'T00:00:00').getTime() : 0;
+    return prazoMs < fromDateMs;
+  });
   let synced = 0;
   const errors = [];
 
   for (const mapping of cfg.mappings) {
     if (!mapping.listId || !mapping.clientId) continue;
     try {
-      const cuTasks = await cuGetTasks(mapping.listId);
+      const cuTasks = await cuGetTasks(mapping.listId, fromDateMs);
       for (const ct of cuTasks) {
-        tasks.push(cuMapTask(ct, mapping.clientId));
+        const existing = allExisting.find(t => t.clickupId === ct.id);
+        tasks.push(cuMapTask(ct, mapping.clientId, existing));
         synced++;
       }
     } catch (e) {
@@ -226,7 +282,7 @@ async function cuAutoSyncCheck() {
         changed = true;
         localStorage.setItem(prevKey, newHash);
       }
-    } catch(e) { /* silent — network errors shouldn't break auto-sync */ }
+    } catch(e) { /* silent - network errors shouldn't break auto-sync */ }
   }
 
   if (changed) {
@@ -257,3 +313,125 @@ function cuStopAutoSync() {
 
 function cuAutoSyncRunning() { return _autoSyncTimer !== null; }
 function cuAutoSyncInterval() { return parseInt(localStorage.getItem('cd_autosync_interval') || '5'); }
+
+// =====================================================
+// CRIAÇÃO DE DEMANDAS NO CLICKUP (via Gerador)
+// =====================================================
+// Mapa: ID interno ? ID numérico do ClickUp
+const CU_USER_ID = {
+  cd:       100014023,
+  isa:      112035853,
+  fernanda: 100014042,
+  luis:     100014041,
+  yasmin:   248617546,
+  dai:      100004956,
+  thais:    236586854,
+  pedro:    55186776,
+  maruju:   112114228
+};
+
+async function cuCriarDemandas(preview) {
+  const cfg = getClickUpCfg();
+  if (!cfg.token || !cfg.mappings?.length) return { ok: 0, errs: 1, msg: 'ClickUp não configurado' };
+
+  const ts      = d => d ? new Date(d + 'T23:59:00-03:00').getTime() : undefined;
+  const cuIds   = ids => (Array.isArray(ids) ? ids : [ids]).map(id => CU_USER_ID[id]).filter(Boolean);
+  const getList = clientId => {
+    const m = cfg.mappings.find(m => m.clientId === clientId && /produ/i.test(m.label || ''))
+           || cfg.mappings.find(m => m.clientId === clientId);
+    return m?.listId;
+  };
+
+  const postTask = async (listId, body) => {
+    const r = await fetch(`${CU_BASE}/list/${listId}/task`, {
+      method: 'POST',
+      headers: { Authorization: cfg.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.err || `HTTP ${r.status}`);
+    return data;
+  };
+
+  // Agrupa subtarefas por (cliente, postagem, pieceKey) ? gera 1 tarefa pai por grupo
+  const groups = {};
+  for (const t of preview) {
+    const key = `${t.cliente}||${t.postagem}||${t.pieceKey || t.tipo}`;
+    if (!groups[key]) groups[key] = { ...t, subs: [] };
+    groups[key].subs.push(t);
+  }
+
+  let ok = 0, errs = 0;
+  for (const g of Object.values(groups)) {
+    const listId = getList(g.cliente);
+    if (!listId) { errs++; continue; }
+
+    const clients    = getClients();
+    const c          = clients.find(cl => cl.id === g.cliente);
+    const clienteNome = c?.nome || g.cliente;
+    const aloc       = ALOCACAO[g.cliente] || {};
+
+    try {
+      const paiBody = {
+        name:      geradorNomePai(g.pieceKey || g.tipo, clienteNome, g.postagem),
+        due_date:  ts(g.postagem),
+        assignees: cuIds(aloc.pai || 'cd')
+      };
+      if (g.descricaoPai) paiBody.description = g.descricaoPai;
+
+      const pai = await postTask(listId, paiBody);
+      ok++;
+
+      for (const sub of g.subs) {
+        try {
+          await postTask(listId, {
+            name:      geradorNomeSub(sub.tipo, sub.subtipo, clienteNome, sub.prazo),
+            due_date:  ts(sub.prazo),
+            assignees: cuIds(sub.responsavel),
+            parent:    pai.id
+          });
+        } catch (e) { errs++; }
+      }
+    } catch (e) { errs++; }
+  }
+
+  return { ok, errs };
+}
+
+// =====================================================
+// WRITE-BACK: update / delete tasks in ClickUp
+// =====================================================
+function cuStatusToClickUp(s) {
+  switch (s) {
+    case 'concluido':    return 'concluídos';
+    case 'aprovado':     return 'aprovado';
+    case 'aprovacao':    return 'aprovação';
+    case 'revisao':      return 'revisão';
+    case 'reprovado':    return 'reprovada';
+    case 'descartado':   return 'descartado';
+    case 'em_andamento': return 'copywriter';
+    default:             return 'pendente';
+  }
+}
+
+// Push a local task's editable fields to ClickUp (only if it has a clickupId)
+async function cuUpdateTask(task) {
+  const cfg = getClickUpCfg();
+  if (!cfg.token || !task?.clickupId) return;
+  const ts  = d => d ? new Date(d + 'T23:59:00-03:00').getTime() : null;
+  const body = { status: cuStatusToClickUp(task.status) };
+  if (task.nome)        body.name     = task.nome;
+  if (task.prazo !== undefined) body.due_date = ts(task.prazo) || undefined;
+  if (task.responsavel) {
+    const uid = CU_USER_ID[task.responsavel];
+    if (uid) body.assignees = { add: [uid], rem: [] };
+  }
+  await cuPut(`/task/${task.clickupId}`, body);
+}
+
+// Delete a task in ClickUp by its clickupId
+async function cuDeleteTask(clickupId) {
+  const cfg = getClickUpCfg();
+  if (!cfg.token || !clickupId) return;
+  await cuDeleteReq(`/task/${clickupId}`);
+}

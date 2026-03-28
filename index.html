@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CD Sistema — Agência</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=light2">
 </head>
 <body>
 
@@ -60,9 +60,13 @@
 <div class="page" id="page-tarefas">
   <div class="flex-between mb-16">
     <div class="section-title mb-0">Todas as Tarefas</div>
-    <button class="btn btn-primary" onclick="openModal('task')">+ Nova Tarefa</button>
+    <div class="flex-center gap-8">
+      <button class="btn btn-ghost btn-sm" onclick="renderTarefas()" title="Recarregar lista">↺ Recarregar</button>
+      <button class="btn btn-primary" onclick="openModal('task')">+ Nova Tarefa</button>
+    </div>
   </div>
   <div id="task-filters" class="mb-16"></div>
+  <div id="bulk-bar-container" style="position:sticky;top:52px;z-index:50"></div>
   <div class="table-wrap" id="tasks-table"></div>
 </div>
 
@@ -93,21 +97,30 @@
 
 <!-- ====== EQUIPE ====== -->
 <div class="page" id="page-equipe">
-  <div class="section-title">Equipe</div>
+  <div class="flex-between mb-20">
+    <div class="section-title mb-0">Equipe</div>
+    <button class="btn btn-primary btn-sm" onclick="abrirNovoIntegrante()">+ Novo Integrante</button>
+  </div>
   <div class="grid grid-3 gap-16 mb-24" id="team-grid"></div>
   <div class="section-title">Ranking de Revisões <span class="badge">meta: &lt; 1.5 por tarefa</span></div>
   <div class="table-wrap" id="revision-table"></div>
   <div class="section-title mt-24">Conteúdo Atrasado por Pessoa</div>
   <div id="overdue-by-person"></div>
+  <div class="section-title mt-24">Alocação de Pessoas</div>
+  <div id="equipe-alocacao"></div>
 </div>
 
 <!-- ====== CLIENTES ====== -->
 <div class="page" id="page-clientes">
   <div class="flex-between mb-16">
     <div class="section-title mb-0">Clientes</div>
-    <button class="btn btn-ghost" onclick="openModal('client')">+ Novo Cliente</button>
+    <div class="flex-center gap-8">
+      <button class="filter-btn active" id="ctab-visao"  onclick="clientesTab('visao')">Visão Geral</button>
+      <button class="filter-btn"        id="ctab-fluxo" onclick="clientesTab('fluxo')">Fluxo de Produção</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('client')">+ Novo Cliente</button>
+    </div>
   </div>
-  <div class="grid grid-2 gap-16" id="clients-grid"></div>
+  <div id="clientes-tab"></div>
 </div>
 
 <!-- ====== FRAMEWORK ====== -->
@@ -174,8 +187,6 @@
           <option value="design">Design</option>
           <option value="video">Vídeo/Reels</option>
           <option value="dark">Dark Post</option>
-          <option value="revisao">Revisão</option>
-          <option value="postagem">Postagem</option>
           <option value="outro">Outro</option>
         </select>
       </div>
@@ -199,6 +210,9 @@
           <option value="pendente">Pendente</option>
           <option value="em_andamento">Em Andamento</option>
           <option value="revisao">Em Revisão</option>
+          <option value="aprovacao">Aguard. Aprovação</option>
+          <option value="reprovado">Reprovado</option>
+          <option value="descartado">Descartado</option>
           <option value="aprovado">Aprovado</option>
           <option value="concluido">Concluído</option>
         </select>
@@ -269,10 +283,31 @@
   </div>
 </div>
 
-<script src="js/data.js?v=20260327j"></script>
-<script src="js/utils.js?v=20260327j"></script>
-<script src="js/clickup.js?v=20260327j"></script>
-<script src="js/pages.js?v=20260327j"></script>
-<script src="js/app.js?v=20260327j"></script>
+<!-- ====== MODAL MOTIVOS DE REVISÃO ====== -->
+<div class="modal-overlay" id="modal-revisao">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 id="modal-revisao-title">Motivos da Revisão</h2>
+      <button class="modal-close" onclick="revisaoModalCancelar()">×</button>
+    </div>
+    <div class="text-xs text-muted mb-16">Selecione os motivos. A pontuação define a severidade.</div>
+    <div id="revisao-motivos-list" style="display:grid;gap:8px;margin-bottom:16px"></div>
+    <div id="revisao-score-bar" style="padding:10px 12px;border-radius:8px;background:var(--bg3);text-align:center;font-weight:600;font-size:13px;margin-bottom:16px"></div>
+    <div class="form-group mb-0">
+      <label style="font-size:12px">Justificativa <span class="text-faint">(opcional)</span></label>
+      <textarea id="revisao-justificativa" rows="2" placeholder="Descreva o contexto ou detalhe o motivo..." style="font-size:13px;resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="revisaoModalCancelar()">Cancelar</button>
+      <button class="btn btn-primary" onclick="revisaoModalConfirmar()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js?v=20260329b"></script>
+<script src="js/utils.js?v=20260329b"></script>
+<script src="js/clickup.js?v=20260329b"></script>
+<script src="js/pages.js?v=20260329b"></script>
+<script src="js/app.js?v=20260329b"></script>
 </body>
 </html>
