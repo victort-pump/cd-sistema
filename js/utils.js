@@ -19,7 +19,7 @@ function fmtDateTime(s) {
 }
 
 function isOverdue(dateStr, status) {
-  if (!dateStr || status === 'concluido' || status === 'aprovado' || status === 'aprovacao' || status === 'reprovado' || status === 'descartado') return false;
+  if (!dateStr || status === 'concluido' || status === 'aprovado' || status === 'aprovacao' || status === 'reprovado' || status === 'descartado' || status === 'travado') return false;
   return dateStr < today();
 }
 
@@ -45,6 +45,7 @@ function statusTag(s) {
     descartado:   ['tag-gray',   'Descartado'],
     aprovado:     ['tag-green',  'Aprovado'],
     concluido:    ['tag-green',  'Concluído'],
+    travado:      ['tag-orange', 'Travado'],
     atrasado:     ['tag-red',    'Atrasado']
   };
   const [cls, label] = map[s] || ['tag-gray', s];
@@ -84,7 +85,8 @@ function tipoTag(t) {
 
 function statusLabel(s) {
   return { pendente:'Pendente', em_andamento:'Em Andamento', revisao:'Em Revisão', aprovacao:'Aguard. Aprovação',
-           reprovado:'Reprovado', descartado:'Descartado', aprovado:'Aprovado', concluido:'Concluído', atrasado:'Atrasado' }[s] || s;
+           reprovado:'Reprovado', descartado:'Descartado', aprovado:'Aprovado', concluido:'Concluído',
+           travado:'Travado', atrasado:'Atrasado' }[s] || s;
 }
 
 function tipoLabel(t) {
@@ -93,7 +95,7 @@ function tipoLabel(t) {
 }
 
 function prazoSemaforo(dateStr, status) {
-  if (!dateStr || status === 'concluido' || status === 'aprovado' || status === 'aprovacao' || status === 'reprovado' || status === 'descartado')
+  if (!dateStr || status === 'concluido' || status === 'aprovado' || status === 'aprovacao' || status === 'reprovado' || status === 'descartado' || status === 'travado')
     return `<span class="text-muted">${fmtDate(dateStr)}</span>`;
   const diff = Math.floor((new Date(dateStr) - new Date(today())) / 86400000);
   if (diff < 0)  return `<span style="color:var(--red);font-weight:700">${fmtDate(dateStr)} (${Math.abs(diff)}d atraso)</span>`;
@@ -115,11 +117,18 @@ function memberName(id) {
   return m ? m.nome : (id || '—');
 }
 
+function memberLabel(id) {
+  const m = memberById(id);
+  if (!m) return id || '—';
+  return m.email ? `${m.nome} — ${m.email}` : m.nome;
+}
+
 // =====================================================
 // NOMENCLATURA GERADOR (padrão ClickUp)
 // =====================================================
-function geradorPieceLabel(pieceKey) {
-  return { feed1:'Design', feed2:'Design', video:'Vídeo', dark:'Dark' }[pieceKey] || 'Design';
+function geradorPieceLabel(pieceKey, pieceNome) {
+  const map = { feed1:'Design', feed2:'Design', video:'Vídeo', dark:'Dark', email:'E-mail Marketing' };
+  return map[pieceKey] || pieceNome || 'Demanda';
 }
 
 function geradorSubtipoLabel(tipo, subtipo) {
@@ -130,6 +139,7 @@ function geradorSubtipoLabel(tipo, subtipo) {
   if (subtipo === 'legenda')      return 'Legenda';
   if (subtipo === 'revisao-ter')  return 'Revisão Terça';
   if (subtipo === 'revisao-qui')  return 'Revisão Quinta';
+  if (subtipo === 'edição de vídeo' || tipo === 'edicao') return 'Edição de Vídeo';
   if (tipo === 'copy')            return 'Copy';
   if (tipo === 'revisao')         return 'Revisão';
   if (tipo === 'design')          return 'Design';
@@ -139,10 +149,10 @@ function geradorSubtipoLabel(tipo, subtipo) {
 }
 
 // Nome da tarefa pai — com padrão especial para relatório
-function geradorNomePai(pieceKey, clienteNome, dataPost) {
+function geradorNomePai(pieceKey, clienteNome, dataPost, pieceNome) {
   if (pieceKey === 'relatorio')
     return `Relatório Semanal — ${clienteNome} | Semana ${fmtDate(dataPost)}: `;
-  return `${geradorPieceLabel(pieceKey)} — ${clienteNome} | Postagem ${fmtDate(dataPost)}: `;
+  return `${geradorPieceLabel(pieceKey, pieceNome)} — ${clienteNome} | Postagem ${fmtDate(dataPost)}: `;
 }
 
 // Nome da subtarefa — com padrão especial para revisões do relatório
@@ -660,4 +670,145 @@ function renderTaskTable(el, tasks, sortable = false) {
       bulkClearSel();
     });
   }
+}
+
+// =====================================================
+// HEALTH SCORE — utils
+// =====================================================
+
+function getISOWeekRef(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay() || 7;       // 1=Mon … 7=Sun
+  d.setDate(d.getDate() + 4 - day);  // shift to Thursday (ISO rule)
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getFullYear() + '-W' + String(weekNo).padStart(2, '0');
+}
+
+function isoWeekToDateRange(weekRef) {
+  const [yearStr, weekPart] = weekRef.split('-W');
+  const year = parseInt(yearStr);
+  const week = parseInt(weekPart);
+  // Jan 4th is always in week 1 (ISO 8601)
+  const jan4 = new Date(year, 0, 4);
+  const day  = jan4.getDay() || 7;
+  const week1Mon = new Date(jan4);
+  week1Mon.setDate(jan4.getDate() - day + 1);
+  const start = new Date(week1Mon);
+  start.setDate(week1Mon.getDate() + (week - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+function parseAreaFromSubtaskName(name) {
+  const n = (name || '').toLowerCase().trim();
+  if (n.startsWith('edição') || n.startsWith('edicao') || n.startsWith('vídeo') || n.startsWith('video')) return 'video';
+  if (n.startsWith('design')) return 'design';
+  if (n.startsWith('copy') || n.startsWith('copywriter')) return 'copy';
+  return 'general';
+}
+
+// delivery  : { postsCompleted, postsExpected }
+// feedback  : 'positive' | 'neutral' | 'negative'
+// revisions : { errorPoints, rejection: 'none'|'partial'|'total' }
+// recording : 'done' | 'pending' | 'na'
+function calculateClientScore(delivery, feedback, revisions, recording) {
+  let deliveryPts = 0;
+  const pc = delivery.postsCompleted || 0;
+  if (pc >= 3) deliveryPts = 40;
+  else if (pc === 2) deliveryPts = 20;
+  else deliveryPts = 0;
+
+  const feedbackPts = { positive: 30, neutral: 15, negative: 0, none: 15 }[feedback] ?? 0;
+
+  const ep = revisions.errorPoints || 0;
+  let revisionPts = 0;
+  if (ep === 0)       revisionPts = 20;
+  else if (ep <= 2)   revisionPts = 15;
+  else if (ep <= 4)   revisionPts = 8;
+  else                revisionPts = 0;
+
+  let recordingPts = 0;
+  let maxScore = 90;
+  if (recording === 'done') { recordingPts = 10; maxScore = 100; }
+
+  const total = Math.min(deliveryPts + feedbackPts + revisionPts + recordingPts, maxScore);
+
+  let finalStatus = total >= 76 ? 'green' : total >= 51 ? 'yellow' : 'red';
+  let overrideActive = false;
+  let overrideReason = 'none';
+
+  if (revisions.rejection === 'total') {
+    finalStatus = 'red'; overrideActive = true; overrideReason = 'total_rejection';
+  } else if (revisions.rejection === 'partial' && finalStatus === 'green') {
+    finalStatus = 'yellow'; overrideActive = true; overrideReason = 'partial_rejection';
+  }
+
+  return {
+    totalScore: total, maxScore, finalStatus, overrideActive, overrideReason,
+    breakdown: { delivery: deliveryPts, feedback: feedbackPts, revisions: revisionPts, recording: recordingPts }
+  };
+}
+
+// ── Tráfego scoring ──────────────────────────────────
+// Score = (% Meta / 100) × 5  →  max 5 pts
+// Verde ≥ 4 (≥80% meta) | Amarelo 2.5-3.9 (50-79%) | Vermelho < 2.5 (<50%)
+function calculateTrafegoScore(metaPct) {
+  const pct   = Math.max(0, parseFloat(metaPct) || 0);
+  const score = Math.min(Math.round((pct / 100) * 5 * 10) / 10, 5);
+  const status = score >= 4 ? 'green' : score >= 2.5 ? 'yellow' : 'red';
+  return { score, maxScore: 5, status, metaPct: pct };
+}
+
+// ── CX scoring ────────────────────────────────────────
+// Nota manual 1–5 | Verde ≥ 4 | Amarelo 3 | Vermelho ≤ 2
+function calculateCXScore(rating) {
+  const r = Math.max(1, Math.min(5, parseInt(rating) || 1));
+  const status = r >= 4 ? 'green' : r >= 3 ? 'yellow' : 'red';
+  return { score: r, maxScore: 5, status };
+}
+
+// ── Score Geral (DC + Tráfego + CX normalizados) ─────
+// dcRecord:     { totalScore } from confirmarFechamento
+// trafegoRecord:{ score }     saved in record.trafego (null = sem tráfego)
+// cxRecord:     { score }     saved in record.cx      (null = sem CX)
+function calculateConsolidatedScore(dcRecord, trafegoRecord, cxRecord) {
+  const dcScore  = (dcRecord != null && dcRecord.totalScore != null) ? dcRecord.totalScore : null;
+  // Guard: old 0-10 trafego records — normalize correctly
+  const trafScore = trafegoRecord ? trafegoRecord.score : null;
+  const trafNorm  = trafScore != null ? Math.min(Math.round((trafScore / 5) * 100), 100) : null;
+  const cxScore   = cxRecord ? cxRecord.score : null;
+  const cxNorm    = cxScore  != null ? Math.min(Math.round((cxScore  / 5) * 100), 100) : null;
+  const areas = [dcScore, trafNorm, cxNorm].filter(v => v !== null);
+  if (areas.length === 0) return null;
+  const score  = Math.round(areas.reduce((a, b) => a + b, 0) / areas.length);
+  const status = score >= 76 ? 'green' : score >= 51 ? 'yellow' : 'red';
+  return { score, status };
+}
+
+// tasks: { total, completed, revised, rejected, delayed, errorPoints }
+function calculateMemberScore(tasks) {
+  const c = tasks.completed || 0;
+  if (c === 0) return {
+    scores: { rejections: 40, errors: 35, delays: 25, total: 100 },
+    proportions: { rejectionRate: 0, errorRate: 0, delayRate: 0 },
+    status: 'healthy'
+  };
+
+  const rejRate = (tasks.rejected   || 0) / c;
+  const errRate = (tasks.errorPoints || 0) / c;
+  const delRate = (tasks.delayed    || 0) / c;
+
+  const rejPts = rejRate === 0 ? 40 : rejRate < 0.01 ? 28 : rejRate < 0.03 ? 12 : 0;
+  const errPts = errRate === 0 ? 35 : errRate < 0.02 ? 25 : errRate < 0.05 ? 10 : 0;
+  const delPts = delRate === 0 ? 25 : delRate < 0.03 ? 18 : delRate < 0.08 ?  8 : 0;
+  const total  = rejPts + errPts + delPts;
+
+  return {
+    scores: { rejections: rejPts, errors: errPts, delays: delPts, total },
+    proportions: { rejectionRate: rejRate, errorRate: errRate, delayRate: delRate },
+    status: total >= 76 ? 'healthy' : total >= 51 ? 'attention' : 'critical'
+  };
 }

@@ -23,6 +23,7 @@ function renderPage(p) {
   else if (p==='framework')  renderFramework();
   else if (p==='gerador')    renderGerador();
   else if (p==='integracao') renderIntegracao();
+  else if (p==='health')     renderHealth();
 }
 
 // =====================================================
@@ -58,10 +59,10 @@ function autoResponsavel() {
 }
 
 function populateTaskForm() {
-  const clients = getClients();
+  const clients = getClients().filter(c => !isTrafegoOnly(c));
   const team    = getTeam();
   document.getElementById('t-cliente').innerHTML    = clients.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-  document.getElementById('t-responsavel').innerHTML = team.map(m=>`<option value="${m.id}">${m.nome}</option>`).join('');
+  document.getElementById('t-responsavel').innerHTML = team.map(m=>`<option value="${m.id}">${memberLabel(m.id)}</option>`).join('');
   document.getElementById('t-cliente').addEventListener('change', autoResponsavel);
   document.getElementById('t-tipo').addEventListener('change', autoResponsavel);
 }
@@ -365,8 +366,16 @@ function init() {
   // Aplica overrides salvos sobre as constantes globais
   const savedAloc  = JSON.parse(localStorage.getItem('cd_alocacao')  || 'null');
   const savedFluxo = JSON.parse(localStorage.getItem('cd_fluxo')     || 'null');
-  if (savedAloc)  Object.assign(ALOCACAO,       savedAloc);
-  if (savedFluxo) Object.assign(FLUXO_SEMANAL,  savedFluxo);
+  if (savedAloc) Object.assign(ALOCACAO, savedAloc);
+  if (savedFluxo) {
+    // Merge inteligente: preserva configurações salvas mas adiciona peças novas do DEFAULT
+    for (const [cid, cFluxo] of Object.entries(savedFluxo)) {
+      if (!FLUXO_SEMANAL[cid]) { FLUXO_SEMANAL[cid] = cFluxo; continue; }
+      const savedKeys = new Set((cFluxo.pieces || []).map(p => p.key));
+      const newPieces = (FLUXO_SEMANAL[cid].pieces || []).filter(p => !savedKeys.has(p.key));
+      FLUXO_SEMANAL[cid] = { ...cFluxo, pieces: [...(cFluxo.pieces || []), ...newPieces] };
+    }
+  }
 
   renderDashboard();
   renderFwSemana();

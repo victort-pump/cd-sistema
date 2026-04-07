@@ -2,38 +2,69 @@
 // CONSTANTS
 // =====================================================
 const CLIENTES_DEFAULT = [
-  { id: 'AI', nome: 'Arquitetura Ideal',    nicho: 'Arquitetura', cor: '#7c6af7' },
-  { id: 'AS', nome: 'Atenua Som',           nicho: 'Acústica',    cor: '#22c55e' },
-  { id: 'MP', nome: 'Mini Panda',           nicho: 'Geral',       cor: '#f97316' },
-  { id: 'TM', nome: 'T&M',                 nicho: 'Negócios',    cor: '#3b82f6' },
-  { id: 'WG', nome: 'Wagner',               nicho: 'Geral',       cor: '#eab308' },
-  { id: 'PL', nome: 'Prospere Lingerie',    nicho: 'Moda',        cor: '#ec4899' },
-  { id: 'DL', nome: 'Depósito da Lingerie', nicho: 'Moda',        cor: '#06b6d4' },
-  { id: 'MN', nome: 'Manobox',              nicho: 'Geral',       cor: '#a855f7' }
+  { id: 'AI', nome: 'Arquitetura Ideal',         nicho: 'Arquitetura',                    cor: '#7c6af7' },
+  { id: 'AS', nome: 'Atenua Som',                nicho: 'Acústica',                       cor: '#22c55e' },
+  { id: 'MP', nome: 'Mini Panda',                nicho: 'Geral',                          cor: '#f97316' },
+  { id: 'TM', nome: 'T&M',                      nicho: 'Negócios',                       cor: '#3b82f6' },
+  { id: 'WG', nome: 'Wagner',                    nicho: 'Geral',                          cor: '#eab308' },
+  { id: 'PL', nome: 'Prospere Lingerie',         nicho: 'Moda',                           cor: '#ec4899' },
+  { id: 'DL', nome: 'Depósito da Lingerie',      nicho: 'Moda',                           cor: '#06b6d4' },
+  { id: 'MN', nome: 'Manobox',                   nicho: 'Geral',                          cor: '#a855f7' },
+  { id: 'AF', nome: 'AFEAL',                     nicho: 'Esquadrias de alumínio',         cor: '#7c6af7' },
+  { id: 'JP', nome: 'Jean Piaget',               nicho: 'Escola',                         cor: '#22c55e' },
+  { id: 'IE', nome: 'Projeto Inclusão Escolar',  nicho: 'Inclusão Escolar',               cor: '#f97316' },
+  { id: 'PP', nome: 'PumP',                      nicho: 'Negócios',                       cor: '#3b82f6' },
+  { id: 'DS', nome: 'DSS',                       nicho: 'Tecnologia para transportadoras',cor: '#eab308' },
+  { id: 'BA', nome: 'Beez AI',                    nicho: 'Tecnologia / IA',               cor: '#14b8a6' },
+  { id: 'IK', nome: 'Ikobe',                      nicho: 'Geral',                          cor: '#ef4444' },
+  // Clientes Tráfego (só gestão de tráfego, sem produção de conteúdo):
+  { id: 'M1', nome: 'M1 Móveis',                  nicho: 'Móveis',                         cor: '#64748b', tipo: 'trafego' },
+  { id: 'FO', nome: 'Fila Online',                nicho: 'Tecnologia',                     cor: '#8b5cf6', tipo: 'trafego' },
+  { id: 'CP', nome: 'Comunidade Prospere',        nicho: 'Comunidade / Moda',              cor: '#f472b6', tipo: 'trafego', vinculado: 'PL' }
 ];
 
 const EQUIPE_DEFAULT = [
-  { id: 'cd',      nome: 'Victor Turati', funcao: 'Diretor Criativo',        clientes: ['AI','AS','MP','TM','WG','PL','DL','MN'] },
-  { id: 'isa',     nome: 'Isa Caruso',    funcao: 'Copywriter',              clientes: ['AI','TM','AS','MP','WG','PL','DL','MN'] },
-  { id: 'fernanda',nome: 'Fernanda Naya', funcao: 'Designer',                clientes: ['AI','AS','MP'] },
-  { id: 'ana',     nome: 'Ana',           funcao: 'Designer',                clientes: ['DL','MN'] },
-  { id: 'luis',    nome: 'Luís Lobão',    funcao: 'Editor',                  clientes: ['AI','TM','WG','PL'] },
-  { id: 'yasmin',  nome: 'Yasmin',        funcao: 'Editor',                  clientes: ['AS','MP','DL','MN'] },
-  { id: 'dai',     nome: 'Dai',           funcao: 'Tráfego',                 clientes: ['AI','AS','MP','TM','WG','PL','DL','MN'] },
-  { id: 'thais',   nome: 'Thais',         funcao: 'Tráfego',                 clientes: ['AI','AS','MP','TM','WG','PL','DL','MN'] },
-  { id: 'pedro',   nome: 'Pedro Victor',  funcao: 'Designer',                clientes: ['TM','WG'] },
-  { id: 'maruju',  nome: 'Ana Maruju',    funcao: 'Designer',                clientes: ['PL'] }
+  { id: 'cd',       clickupId: 100014023, nome: 'Victor Turati',     email: 'victort@pumpmidia.org',          foto: 'https://attachments.clickup.com/profilePictures/100014023_UvE.jpg', funcao: 'Diretor Criativo', clientes: ['AI','AS','MP','TM','WG','PL','DL','MN'] },
+  { id: 'isa',      clickupId: 112035853, nome: 'Isa Caruso',        email: 'isacaruso@pumpmidia.com',        foto: '', funcao: 'Copy',             clientes: ['AI','TM','AS','MP','WG','PL','DL','MN'] },
+  { id: 'fernanda', clickupId: 100014042, nome: 'Fernanda Naya',     email: 'fernandanaya05@gmail.com',       foto: 'https://attachments.clickup.com/profilePictures/100014042_bpO.jpg', funcao: 'Designer',         clientes: ['AI','AS','MP'] },
+  { id: 'luis',     clickupId: 100014041, nome: 'Luís Lobão',        email: 'luishlobaopump@gmail.com',       foto: '', funcao: 'Edição de Vídeo',  clientes: ['AI','TM','WG','PL'] },
+  { id: 'yasmin',   clickupId: 248617546, nome: 'Yasmin Maranesi',   email: 'yasminmaranesi@pumpmidia.com',   foto: '', funcao: 'Edição de Vídeo',  clientes: ['AS','MP','DL','MN','IE'] },
+  { id: 'dai',      clickupId: 100004956, nome: 'Daiane Marques',    email: 'daiane.marques@pumpmidia.com',   foto: 'https://attachments.clickup.com/profilePictures/100004956_ofw.jpg', funcao: 'Tráfego',          clientes: ['AI','AS','MP','TM','WG','PL','DL','MN','AF','JP','IE','PP','DS','BA','IK','M1','FO','CP'] },
+  { id: 'thais',    clickupId: 236586854, nome: 'Thais Leal',        email: 'thaislealmarketing@gmail.com',   foto: 'https://attachments.clickup.com/profilePictures/236586854_mCC.jpg', funcao: 'Tráfego',          clientes: ['AI','AS','MP','TM','WG','PL','DL','MN','AF','JP','IE','PP','DS','BA','IK','M1','FO','CP'] },
+  { id: 'pedro',    clickupId: 55186776,  nome: 'Pedro Victor',      email: 'pedrovictormn@gmail.com',        foto: '', funcao: 'Designer',         clientes: ['TM','WG','PP'] },
+  { id: 'maruju',   clickupId: 112114228, nome: 'Ana Maruju',        email: '',                               foto: '', funcao: 'Designer',         clientes: ['PL','DL','MN','JP','IE','DS'] },
+  { id: 'paula',    clickupId: 272447488, nome: 'Paula Santinati',   email: 'paula@pumpmidia.com',            foto: '', funcao: 'Copywriter',       clientes: ['AF','JP','IE','DS'] },
+  { id: 'júlia',    clickupId: 82072757,  nome: 'Julia Seabra Lima', email: 'juliasdsgn@gmail.com',           foto: '', funcao: 'Copywriter',       clientes: ['JP','IE','PP','DS'] },
+  { id: 'filó',     clickupId: 106164093, nome: 'Filomena Scalisse', email: 'filomena.scalisse@pumpmidia.com',foto: '', funcao: 'Copywriter',       clientes: ['JP'] },
+  { id: 'caio_m',   clickupId: 112088209, nome: 'Caio Mattos',       email: 'caiomattos@pumpmidia.com',       foto: 'https://attachments.clickup.com/profilePictures/112088209_5wZ.jpg', funcao: '', clientes: [] },
+  { id: 'leo',      clickupId: 94013425,  nome: 'Leonardo Araujo',   email: 'leoarauj21@gmail.com',           foto: '', funcao: '', clientes: [] },
+  { id: 'alison',   clickupId: 90627463,  nome: 'Alison Nejain',     email: 'alisondnejain@gmail.com',        foto: '', funcao: '', clientes: [] },
+  { id: 'joao',     clickupId: 99992008,  nome: 'João Lucas Soares', email: 'joao@pumpmidia.com',             foto: '', funcao: '', clientes: [] },
+  { id: 'gabi',     clickupId: 111986960, nome: 'Gabriela Lisardo',  email: 'gabilisardo@pumpmidia.com',      foto: '', funcao: '', clientes: [] },
+  { id: 'pedro_h',  clickupId: 100014062, nome: 'Pedro Haraguti',    email: 'pedro@pumpmidia.com',            foto: '', funcao: '', clientes: [] },
+  { id: 'caio',     clickupId: 100012100, nome: 'Caio',              email: 'caio@pumpmidia.com',             foto: '', funcao: '', clientes: [] },
+  { id: 'jackson',  clickupId: 206413939, nome: 'Jackson Severo',    email: 'jay@pumpmidia.com',              foto: '', funcao: '', clientes: [] }
 ];
 
 const ALOCACAO = {
-  AI: { pai: 'isa', copy: 'isa',                    revisao: 'cd', design: 'fernanda', edicao: 'luis',   trafego: ['dai','thais'] },
-  AS: { pai: 'cd', copy: 'isa',                    revisao: 'cd', design: 'fernanda', edicao: 'yasmin', trafego: ['dai','thais'] },
-  MP: { pai: 'cd', copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'fernanda', edicao: 'yasmin', trafego: ['dai','thais'], designDark: 'fernanda', relatorioResp: 'isa' },
-  TM: { pai: 'cd', copy: 'isa',                    revisao: 'cd', design: 'pedro',    edicao: 'luis',   trafego: ['dai','thais'] },
-  WG: { pai: 'cd', copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'pedro',    edicao: 'luis',   trafego: ['dai','thais'] },
-  PL: { pai: 'cd', copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'maruju',   edicao: 'luis',   trafego: ['dai','thais'] },
-  DL: { pai: 'isa', copy: 'isa',                    revisao: 'cd', design: 'ana',      edicao: 'yasmin', trafego: ['dai','thais'] },
-  MN: { pai: 'isa', copy: 'isa',                    revisao: 'cd', design: 'ana',      edicao: 'yasmin', trafego: ['dai','thais'] }
+  AI: { pai: 'isa',   copy: 'isa',                    revisao: 'cd', design: 'fernanda', edicao: 'luis',   trafego: ['dai','thais'] },
+  AS: { pai: 'cd',    copy: 'isa',                    revisao: 'cd', design: 'fernanda', edicao: 'yasmin', trafego: ['dai','thais'] },
+  MP: { pai: 'cd',    copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'fernanda', edicao: 'yasmin', trafego: ['dai','thais'], copyDark: 'isa', designDark: 'fernanda', relatorioResp: 'isa' },
+  TM: { pai: 'cd',    copy: 'isa',                    revisao: 'cd', design: 'pedro',    edicao: 'luis',   trafego: ['dai','thais'] },
+  WG: { pai: 'cd',    copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'pedro',    edicao: 'luis',   trafego: ['dai','thais'] },
+  PL: { pai: 'cd',    copy: 'cd',  assistCopy: 'isa', revisao: 'cd', design: 'maruju',   edicao: 'luis',   trafego: ['dai','thais'] },
+  DL: { pai: 'isa',   copy: 'isa',                    revisao: 'cd', design: 'maruju',   edicao: 'yasmin', trafego: ['dai','thais'] },
+  MN: { pai: 'isa',   copy: 'isa',                    revisao: 'cd', design: 'maruju',   edicao: 'yasmin', trafego: ['dai','thais'] },
+  JP: { pai: 'paula', copy: 'paula',                                 design: 'maruju',   edicao: 'júlia'  },
+  IE: { pai: 'paula', copy: 'paula',                                 design: 'maruju',   edicao: 'yasmin' },
+  PP: { pai: 'júlia', copy: 'júlia',                                 design: 'pedro',    edicao: 'júlia'  },
+  DS: { pai: 'paula', copy: 'paula',                                 design: 'maruju',   edicao: 'júlia'  },
+  AF: { pai: 'paula', copy: 'paula',                                 design: 'maruju',   edicao: 'yasmin' },
+  BA: { trafego: ['dai','thais'] },
+  IK: { trafego: ['dai','thais'] },
+  M1: { trafego: ['dai','thais'] },
+  FO: { trafego: ['dai','thais'] },
+  CP: { trafego: ['dai','thais'] }
 };
 
 const VOLUME_SEMANAL = {
@@ -44,7 +75,14 @@ const VOLUME_SEMANAL = {
   WG: { designs: 2, videos: 1, darks: 0 },
   PL: { designs: 2, videos: 1, darks: 0 },
   DL: { designs: 2, videos: 1, darks: 0 },
-  MN: { designs: 2, videos: 1, darks: 0 }
+  MN: { designs: 2, videos: 1, darks: 0 },
+  AF: { designs: 2, videos: 1, darks: 0 },
+  JP: { designs: 2, videos: 1, darks: 0 },
+  IE: { designs: 2, videos: 1, darks: 0 },
+  PP: { designs: 2, videos: 1, darks: 0 },
+  DS: { designs: 2, videos: 1, darks: 0 },
+  BA: { designs: 2, videos: 1, darks: 0 },
+  IK: { designs: 2, videos: 1, darks: 0 }
 };
 
 // Dias de postagem e subtarefas por cliente - conforme Organização Mensal
@@ -53,18 +91,24 @@ const VOLUME_SEMANAL = {
 const FLUXO_SEMANAL = {
   PL: { pieces: [
     { nome: 'Design 1', key: 'feed1', postDow: 3, tarefas: [
-      { tipo: 'copy',   subtipo: 'feed1',     respKey: 'copy',   offset: -7 },
-      { tipo: 'design', subtipo: 'feed1',     respKey: 'design', offset: -7 }
+      { tipo: 'copy',   subtipo: 'feed1',                  respKey: 'copy',   offset: -7 },
+      { tipo: 'design', subtipo: 'feed1',                  respKey: 'design', offset: -7 }
     ]},
     { nome: 'Design 2', key: 'feed2', postDow: 5, tarefas: [
-      { tipo: 'copy',   subtipo: 'feed2',     respKey: 'copy',   offset: -7 },
-      { tipo: 'design', subtipo: 'feed2',     respKey: 'design', offset: -7 }
+      { tipo: 'copy',   subtipo: 'feed2',                  respKey: 'copy',   offset: -7 },
+      { tipo: 'design', subtipo: 'feed2',                  respKey: 'design', offset: -7 }
     ]},
     { nome: 'Vídeo', key: 'video', postDow: 2, tarefas: [
-      { tipo: 'copy',   subtipo: 'copy-capa', respKey: 'copy',   offset: -7 },
-      { tipo: 'copy',   subtipo: 'legenda',   respKey: 'copy',   offset: -7 },
-      { tipo: 'video',  subtipo: 'reels',     respKey: 'edicao', offset: -7 },
-      { tipo: 'design', subtipo: 'capa-video',respKey: 'design', offset: -7 }
+      { tipo: 'copy',   subtipo: 'copy para capa de vídeo',respKey: 'copy',   offset: -11 },
+      { tipo: 'copy',   subtipo: 'legenda',                respKey: 'copy',   offset: -11 },
+      { tipo: 'edicao', subtipo: 'reels',                  respKey: 'edicao', offset: -7 },
+      { tipo: 'design', subtipo: 'capa-video',             respKey: 'design', offset: -7 }
+    ]},
+    { nome: 'Vídeo para YouTube', key: 'nova-4', postDow: 5, tarefas: [
+      { tipo: 'copy',   subtipo: 'copy',            respKey: 'assistCopy', offset: -10 },
+      { tipo: 'revisao',subtipo: 'legenda',          respKey: 'copy',       offset: -9  },
+      { tipo: 'design', subtipo: 'design',           respKey: 'design',     offset: -7  },
+      { tipo: 'edicao', subtipo: 'edição de vídeo',  respKey: 'edicao',     offset: -7  }
     ]}
   ]},
   AI: { pieces: [
@@ -99,6 +143,10 @@ const FLUXO_SEMANAL = {
       { tipo: 'copy',   subtipo: 'legenda',   respKey: 'copy',   offset: -7 },
       { tipo: 'video',  subtipo: 'reels',     respKey: 'edicao', offset: -7 },
       { tipo: 'design', subtipo: 'capa-video',respKey: 'design', offset: -7 }
+    ]},
+    { nome: 'E-mail Marketing', key: 'email', postDow: 3, quinzenal: true, tarefas: [
+      { tipo: 'copy',   subtipo: 'texto do e-mail', respKey: 'copy',   offset: -7 },
+      { tipo: 'design', subtipo: 'template e-mail', respKey: 'design', offset: -5 }
     ]}
   ]},
   MP: { pieces: [
@@ -295,12 +343,28 @@ const REUNIOES_FIXAS = [
 // =====================================================
 // STORAGE
 // =====================================================
-function _lsGet(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
-  catch(e) { console.warn('localStorage parse error ['+key+']:', e); return null; }
+function _lsGet(key, fallback = null) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e) { console.warn('localStorage parse error ['+key+']:', e); return fallback; }
 }
-function getClients()     { return _lsGet('cd_clientes') || CLIENTES_DEFAULT; }
-function getTeam()        { return _lsGet('cd_equipe')   || EQUIPE_DEFAULT; }
+function getClients() {
+  const saved = _lsGet('cd_clientes');
+  if (!saved) return CLIENTES_DEFAULT;
+  // Merge: keep saved clients, add any new ones from CLIENTES_DEFAULT
+  const savedIds = new Set(saved.map(c => c.id));
+  const newClients = CLIENTES_DEFAULT.filter(c => !savedIds.has(c.id));
+  return [...saved, ...newClients];
+}
+function getTeam() {
+  const saved = _lsGet('cd_equipe');
+  if (!saved) return EQUIPE_DEFAULT.map(m => ({ email:'', foto:'', ...m }));
+  // Merge: keep all saved members (with user customizations), add any new ones from EQUIPE_DEFAULT
+  const savedIds = new Set(saved.map(m => m.id));
+  const newMembers = EQUIPE_DEFAULT.filter(m => !savedIds.has(m.id));
+  return [...saved, ...newMembers].map(m => ({ email:'', foto:'', ...m }));
+}
+function getCargos()      { return _lsGet('cd_cargos')  || ['Direção Criativa','Copywriter','Designer','Editor','Tráfego']; }
+function saveCargos(arr)  { localStorage.setItem('cd_cargos', JSON.stringify(arr)); }
 function getTasks()       { return _lsGet('cd_tasks')    || []; }
 function getChecklist()   { return _lsGet('cd_checklist')|| {}; }
 function getMetas()       { return _lsGet('cd_metas')    || getDefaultMetas(); }
@@ -323,6 +387,7 @@ function saveAlocacao(d)     { localStorage.setItem('cd_alocacao',  JSON.stringi
 function saveFluxoSemanal(d) { localStorage.setItem('cd_fluxo',     JSON.stringify(d)); Object.assign(FLUXO_SEMANAL, d); }
 
 function clientById(id)   { return getClients().find(c => c.id === id); }
+function isTrafegoOnly(c) { return c?.tipo === 'trafego'; }
 function memberById(id)   { return getTeam().find(m => m.id === id); }
 
 function getDefaultMetas() {
@@ -333,3 +398,49 @@ function getDefaultMetas() {
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// =====================================================
+// HEALTH SCORE — storage
+// =====================================================
+function getWeeklyScores()   { return _lsGet('cd_health_weekly',  []) || []; }
+function saveWeeklyScores(d) { localStorage.setItem('cd_health_weekly',  JSON.stringify(d)); }
+function getMemberScores()   { return _lsGet('cd_health_members', []) || []; }
+function saveMemberScores(d) { localStorage.setItem('cd_health_members', JSON.stringify(d)); }
+
+// =====================================================
+// GOOGLE SHEETS — Tráfego config & cache
+// =====================================================
+const GS_TRAFEGO_DEFAULT_MAP = {
+  'Arquitetura Ideal': 'AI', 'Atenua Som': 'AS', 'Atenua': 'AS',
+  'Mini Panda': 'MP', 'T&M': 'TM', 'Wagner': 'WG',
+  'Prospere Lingerie': 'PL', 'Prospere': 'PL', 'Depósito da Lingerie': 'DL',
+  'Beez AI': 'BA', 'Beezz.ai': 'BA', 'Ikobe': 'IK',
+  'M1 Móveis': 'M1', 'M1': 'M1',
+  'Fila Online': 'FO',
+  'Comunidade Prospere': 'CP', 'Prospere - Comunidade': 'CP',
+  'Jean Piaget': 'JP', 'AFEAL': 'AF',
+  'PumP Mídia': 'PP', 'PumP': 'PP',
+  'DSS': 'DS', 'Manobox': 'MN',
+  'Projeto Inclusão Escolar': 'IE'
+};
+function gsGetConfig()    {
+  return _lsGet('cd_gs_trafego_cfg', {
+    spreadsheetId: '12ZiflFbcovJEwV1eXUvJzYBqT_zF6MY8KIqoQcLVhgc',
+    sheetSemanal: 'Semanal', sheetMensal: 'Mensal',
+    gid: '0', clientMap: GS_TRAFEGO_DEFAULT_MAP
+  });
+}
+function gsSaveConfig(d)  { localStorage.setItem('cd_gs_trafego_cfg', JSON.stringify(d)); }
+// tipo: 'semanal' (default) | 'mensal'
+function gsGetData(tipo) {
+  // Migração: dados antigos em cd_gs_trafego_data → copiar para cd_gs_trafego_semanal
+  if (!tipo || tipo === 'semanal') {
+    const old = _lsGet('cd_gs_trafego_data', null);
+    if (old && !localStorage.getItem('cd_gs_trafego_semanal')) {
+      localStorage.setItem('cd_gs_trafego_semanal', JSON.stringify(old));
+      localStorage.removeItem('cd_gs_trafego_data');
+    }
+  }
+  return _lsGet('cd_gs_trafego_' + (tipo || 'semanal'), {});
+}
+function gsSaveData(d, tipo) { localStorage.setItem('cd_gs_trafego_' + (tipo || 'semanal'), JSON.stringify(d)); }

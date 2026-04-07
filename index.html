@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CD Sistema — Agência</title>
-<link rel="stylesheet" href="styles.css?v=light2">
+<link rel="stylesheet" href="styles.css?v=light6">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
   <button data-page="clientes"   onclick="setPage('clientes')">Clientes</button>
   <button data-page="framework"  onclick="setPage('framework')">Framework</button>
   <button data-page="gerador"    onclick="setPage('gerador')">Criação de Demandas</button>
+  <button data-page="health"     onclick="setPage('health')">Health Score</button>
   <button data-page="integracao" onclick="setPage('integracao')" style="margin-left:auto">⚡ ClickUp</button>
 </nav>
 
@@ -146,6 +147,11 @@
   <div id="gerador-content"></div>
 </div>
 
+<!-- ====== HEALTH SCORE ====== -->
+<div class="page" id="page-health">
+  <div id="health-content"></div>
+</div>
+
 <!-- ====== INTEGRAÇÃO CLICKUP ====== -->
 <div class="page" id="page-integracao">
   <div class="flex-between mb-20">
@@ -155,13 +161,16 @@
     </div>
   </div>
   <div id="int-status"></div>
+  <div id="int-progress" style="display:none"></div>
   <div class="grid grid-2 gap-16">
     <div>
       <div id="int-config"></div>
       <div id="int-errors"></div>
+      <div id="int-gs-trafego" class="mt-16"></div>
     </div>
     <div id="int-mappings"></div>
   </div>
+  <div id="int-orphans" class="mt-20"></div>
 </div>
 
 <!-- ====== MODAL TAREFA ====== -->
@@ -212,6 +221,7 @@
           <option value="revisao">Em Revisão</option>
           <option value="aprovacao">Aguard. Aprovação</option>
           <option value="reprovado">Reprovado</option>
+          <option value="travado">Travado</option>
           <option value="descartado">Descartado</option>
           <option value="aprovado">Aprovado</option>
           <option value="concluido">Concluído</option>
@@ -304,10 +314,10 @@
   </div>
 </div>
 
-<script src="js/data.js?v=20260329b"></script>
-<script src="js/utils.js?v=20260329b"></script>
-<script src="js/clickup.js?v=20260329b"></script>
-<script src="js/pages.js?v=20260329b"></script>
-<script src="js/app.js?v=20260329b"></script>
+<script src="js/data.js?v=20260406f"></script>
+<script src="js/utils.js?v=20260406c"></script>
+<script src="js/clickup.js?v=20260406b"></script>
+<script src="js/pages.js?v=20260406o"></script>
+<script src="js/app.js?v=20260406a"></script>
 </body>
 </html>
