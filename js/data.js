@@ -432,14 +432,15 @@ function gsGetConfig()    {
 }
 function gsSaveConfig(d)  { localStorage.setItem('cd_gs_trafego_cfg', JSON.stringify(d)); }
 // tipo: 'semanal' (default) | 'mensal'
+let _gsMigrationDone = false;
 function gsGetData(tipo) {
-  // Migração: dados antigos em cd_gs_trafego_data → copiar para cd_gs_trafego_semanal
-  if (!tipo || tipo === 'semanal') {
+  if (!_gsMigrationDone && (!tipo || tipo === 'semanal')) {
     const old = _lsGet('cd_gs_trafego_data', null);
     if (old && !localStorage.getItem('cd_gs_trafego_semanal')) {
       localStorage.setItem('cd_gs_trafego_semanal', JSON.stringify(old));
       localStorage.removeItem('cd_gs_trafego_data');
     }
+    _gsMigrationDone = true;
   }
   return _lsGet('cd_gs_trafego_' + (tipo || 'semanal'), {});
 }

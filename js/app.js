@@ -63,8 +63,12 @@ function populateTaskForm() {
   const team    = getTeam();
   document.getElementById('t-cliente').innerHTML    = clients.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
   document.getElementById('t-responsavel').innerHTML = team.map(m=>`<option value="${m.id}">${memberLabel(m.id)}</option>`).join('');
-  document.getElementById('t-cliente').addEventListener('change', autoResponsavel);
-  document.getElementById('t-tipo').addEventListener('change', autoResponsavel);
+  const clienteEl = document.getElementById('t-cliente');
+  const tipoEl    = document.getElementById('t-tipo');
+  clienteEl.removeEventListener('change', autoResponsavel);
+  tipoEl.removeEventListener('change', autoResponsavel);
+  clienteEl.addEventListener('change', autoResponsavel);
+  tipoEl.addEventListener('change', autoResponsavel);
 }
 
 function clearTaskForm() {

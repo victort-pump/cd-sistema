@@ -1520,6 +1520,7 @@ function _gsParsePct(val) {
 async function gsTrafegoSync(tipo) {
   tipo = tipo || 'semanal';
   const cfg = gsGetConfig();
+  if (!cfg.spreadsheetId) { showToast('Configure o ID da planilha Google Sheets primeiro', true); return; }
   const sheetName = tipo === 'mensal' ? (cfg.sheetMensal || 'Mensal') : (cfg.sheetSemanal || 'Semanal');
   const url = `https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const btnId = tipo === 'mensal' ? 'gs-sync-mensal-btn' : 'gs-sync-btn';
@@ -1530,6 +1531,7 @@ async function gsTrafegoSync(tipo) {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const text = await resp.text();
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('Resposta inválida — verifique se a planilha é pública');
     const rows = _gsParseCsv(text);
 
     const clientMap = cfg.clientMap || GS_TRAFEGO_DEFAULT_MAP;
@@ -2506,7 +2508,7 @@ function gTogglePiece(cid, key, e) {
 }
 
 function geradorProximo2() {
-  const clients = getClients();
+  const clients = getClients().filter(c => !isTrafegoOnly(c));
 
   function addDias(dateStr, n) {
     const d = new Date(dateStr + 'T12:00:00');
@@ -2563,7 +2565,7 @@ function geradorProximo2() {
 }
 
 function renderGeradorStep3() {
-  const clients = getClients();
+  const clients = getClients().filter(c => !isTrafegoOnly(c));
   const byCliente = {};
   for (const c of clients) byCliente[c.id] = geradorPreview.filter(t => t.cliente === c.id);
 
@@ -3091,11 +3093,13 @@ async function _hsSyncAndPopulateTrafego() {
 
   try {
     const cfg = gsGetConfig();
+    if (!cfg.spreadsheetId) { showToast('Configure o ID da planilha', true); return; }
     const sheetName = cfg.sheetSemanal || 'Semanal';
     const url = `https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const text = await resp.text();
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('Resposta inválida — planilha não pública?');
     const rows = _gsParseCsv(text);
 
     const clientMap = cfg.clientMap || GS_TRAFEGO_DEFAULT_MAP;

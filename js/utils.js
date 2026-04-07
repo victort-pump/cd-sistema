@@ -687,9 +687,11 @@ function getISOWeekRef(date) {
 }
 
 function isoWeekToDateRange(weekRef) {
+  if (!weekRef || typeof weekRef !== 'string' || !weekRef.includes('-W')) return { start: new Date(), end: new Date() };
   const [yearStr, weekPart] = weekRef.split('-W');
   const year = parseInt(yearStr);
   const week = parseInt(weekPart);
+  if (isNaN(year) || isNaN(week) || week < 1 || week > 53) return { start: new Date(), end: new Date() };
   // Jan 4th is always in week 1 (ISO 8601)
   const jan4 = new Date(year, 0, 4);
   const day  = jan4.getDay() || 7;
