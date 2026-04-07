@@ -523,6 +523,7 @@ async function cuCriarDemandas(preview) {
   }
 
   let ok = 0, errs = 0;
+  const parents = [];  // { name, url, cliente }
   for (const g of Object.values(groups)) {
     const listId = getList(g.cliente);
     if (!listId) { errs++; continue; }
@@ -542,6 +543,7 @@ async function cuCriarDemandas(preview) {
 
       const pai = await postTask(listId, paiBody);
       ok++;
+      if (pai.url) parents.push({ name: paiBody.name, url: pai.url, cliente: g.cliente });
 
       for (const sub of g.subs) {
         try {
@@ -556,7 +558,7 @@ async function cuCriarDemandas(preview) {
     } catch (e) { errs++; }
   }
 
-  return { ok, errs };
+  return { ok, errs, parents };
 }
 
 // =====================================================

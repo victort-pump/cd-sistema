@@ -2158,18 +2158,33 @@ function _renderGeradorLog() {
       return c ? `<span class="tag" style="background:${c.cor}22;color:${c.cor}">${c.id}</span>` : '';
     }).join('');
     const canUndo = l.taskIds && l.taskIds.length > 0;
-    return `<div class="card mb-6" style="padding:10px 14px">
+    const hasLinks = l.parentLinks && l.parentLinks.length > 0;
+    const linksHtml = hasLinks ? `
+      <div id="log-links-${l.id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Demandas criadas no ClickUp:</div>
+        ${l.parentLinks.map(p => {
+          const c = clients.find(x => x.id === p.cliente);
+          return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+            ${c ? `<span style="width:6px;height:6px;border-radius:50%;background:${c.cor};flex-shrink:0"></span>` : ''}
+            <a href="${p.url}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</a>
+            <span style="font-size:10px;color:var(--text3)">↗</span>
+          </div>`;
+        }).join('')}
+      </div>` : '';
+    return `<div class="card mb-6" style="padding:10px 14px;${hasLinks ? 'cursor:pointer' : ''}" ${hasLinks ? `onclick="document.getElementById('log-links-${l.id}').style.display=document.getElementById('log-links-${l.id}').style.display==='none'?'block':'none'"` : ''}>
       <div class="flex-between">
         <div class="flex-center gap-6 flex-wrap">
           <span class="tag" style="background:var(--accent)22;color:var(--accent)">${modeLabel(l.mode)}</span>
           ${tags}
           <span class="text-xs text-faint">${l.total} tarefa${l.total!==1?'s':''}</span>
+          ${hasLinks ? `<span class="text-xs" style="color:var(--accent)">🔗 ${l.parentLinks.length} link${l.parentLinks.length!==1?'s':''}</span>` : ''}
         </div>
         <div class="flex-center gap-8">
           <span class="text-xs text-faint">${dt}</span>
-          ${canUndo ? `<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="desfazerCriacao('${l.id}')" title="Desfazer — remove as ${l.taskIds.length} tarefas criadas nesta ação">↩ Desfazer</button>` : ''}
+          ${canUndo ? `<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="event.stopPropagation();desfazerCriacao('${l.id}')" title="Desfazer — remove as ${l.taskIds.length} tarefas criadas nesta ação">↩ Desfazer</button>` : ''}
         </div>
       </div>
+      ${linksHtml}
     </div>`;
   }).join('');
 }
@@ -2817,20 +2832,30 @@ async function _geradorCriarFinal(preview) {
   saveTasks([...getTasks(), ...novas]);
 
   // Log
-  salvarLogCriacao({
+  const logEntry = {
     id:        uid(),
     timestamp: new Date().toISOString(),
     mode:      geradorMode,
     clientes:  [...new Set(preview.map(t => t.cliente))],
     total:     novas.length,
     taskIds:   novas.map(t => t.id),
-    tasks:     preview.map(t => ({ cliente: t.cliente, tipo: t.tipo, subtipo: t.subtipo, postagem: t.postagem, prazo: t.prazo, responsavel: t.responsavel, nome: t.nome||'' }))
-  });
+    tasks:     preview.map(t => ({ cliente: t.cliente, tipo: t.tipo, subtipo: t.subtipo, postagem: t.postagem, prazo: t.prazo, responsavel: t.responsavel, nome: t.nome||'' })),
+    parentLinks: []
+  };
+  salvarLogCriacao(logEntry);
 
   let ok = 0, errs = 0;
   try {
     showToast('Criando no ClickUp...');
-    ({ ok, errs } = await cuCriarDemandas(preview));
+    const cuResult = await cuCriarDemandas(preview);
+    ok   = cuResult.ok;
+    errs = cuResult.errs;
+    // Save parent links back to the log entry
+    if (cuResult.parents?.length) {
+      const logs = getLogsCriacao();
+      const saved = logs.find(l => l.id === logEntry.id);
+      if (saved) { saved.parentLinks = cuResult.parents; localStorage.setItem('cd_logs_criacao', JSON.stringify(logs)); }
+    }
     if (errs === 0)
       showToast(`${novas.length} tarefas salvas → ${ok} demandas criadas no ClickUp ✓`);
     else if (ok > 0)
