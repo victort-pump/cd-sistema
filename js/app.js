@@ -3,15 +3,58 @@
 // =====================================================
 let currentPage = 'dashboard';
 
+const PAGE_META = {
+  dashboard:  { group: 'Operação',     label: 'Dashboard' },
+  tarefas:    { group: 'Operação',     label: 'Tarefas' },
+  calendario: { group: 'Operação',     label: 'Calendário' },
+  framework:  { group: 'Operação',     label: 'Framework' },
+  equipe:     { group: 'Gestão',       label: 'Equipe' },
+  clientes:   { group: 'Gestão',       label: 'Clientes' },
+  health:     { group: 'Gestão',       label: 'Health Score' },
+  gerador:    { group: 'Ferramentas',  label: 'Criar Demandas' },
+  integracao: { group: 'Ferramentas',  label: 'ClickUp' }
+};
+
 function setPage(p) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('nav button[data-page]').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item[data-page]').forEach(el => el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
-  const btn = document.querySelector(`nav button[data-page="${p}"]`);
+  const btn = document.querySelector(`.sidebar-item[data-page="${p}"]`);
   if (btn) btn.classList.add('active');
   currentPage = p;
+  updateBreadcrumb(p);
+  if (window.innerWidth <= 768) closeMobileSidebar();
   if (typeof bulkClearSel === 'function') bulkClearSel();
   renderPage(p);
+}
+
+// =====================================================
+// SIDEBAR
+// =====================================================
+function toggleSidebarCollapse() {
+  const layout = document.getElementById('app-layout');
+  layout.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('cd_sidebar_collapsed', layout.classList.contains('sidebar-collapsed'));
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function updateBreadcrumb(p) {
+  const meta = PAGE_META[p] || { group: '', label: p };
+  const section = document.getElementById('breadcrumb-section');
+  const current = document.getElementById('breadcrumb-current');
+  if (section) section.textContent = meta.group;
+  if (current) current.textContent = meta.label;
 }
 
 function renderPage(p) {
@@ -360,6 +403,13 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 
 function init() {
+  // Restore sidebar collapsed state
+  if (localStorage.getItem('cd_sidebar_collapsed') === 'true') {
+    document.getElementById('app-layout')?.classList.add('sidebar-collapsed');
+  }
+  // Close mobile sidebar on resize to desktop
+  window.addEventListener('resize', () => { if (window.innerWidth > 768) closeMobileSidebar(); });
+
   // Close client dropdowns when clicking outside
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.client-drop-panel') && !e.target.closest('[onclick*="toggleClientDropdown"]')) {

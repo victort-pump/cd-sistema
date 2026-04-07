@@ -4,22 +4,90 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CD Sistema — Agência</title>
-<link rel="stylesheet" href="styles.css?v=light6">
+<link rel="stylesheet" href="styles.css?v=20260407b">
 </head>
 <body>
 
-<nav>
+<div class="app-layout" id="app-layout">
+
+<!-- ====== TOPBAR ====== -->
+<header class="topbar">
+  <button class="topbar-hamburger" onclick="toggleSidebar()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
   <span class="logo">CD Sistema</span>
-  <button data-page="dashboard"  onclick="setPage('dashboard')"  class="active">Dashboard</button>
-  <button data-page="tarefas"    onclick="setPage('tarefas')">Tarefas</button>
-  <button data-page="calendario" onclick="setPage('calendario')">Calendário</button>
-  <button data-page="equipe"     onclick="setPage('equipe')">Equipe</button>
-  <button data-page="clientes"   onclick="setPage('clientes')">Clientes</button>
-  <button data-page="framework"  onclick="setPage('framework')">Framework</button>
-  <button data-page="gerador"    onclick="setPage('gerador')">Criação de Demandas</button>
-  <button data-page="health"     onclick="setPage('health')">Health Score</button>
-  <button data-page="integracao" onclick="setPage('integracao')" style="margin-left:auto">⚡ ClickUp</button>
-</nav>
+  <div class="topbar-breadcrumb">
+    <span id="breadcrumb-section">Operação</span>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current" id="breadcrumb-current">Dashboard</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <span class="avatar-sm">VT</span>
+</header>
+
+<!-- ====== SIDEBAR ====== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-inner">
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Operação</div>
+      <button class="sidebar-item active" data-page="dashboard" onclick="setPage('dashboard')">
+        <span class="sidebar-icon">📊</span>
+        <span class="sidebar-label">Dashboard</span>
+      </button>
+      <button class="sidebar-item" data-page="tarefas" onclick="setPage('tarefas')">
+        <span class="sidebar-icon">✅</span>
+        <span class="sidebar-label">Tarefas</span>
+      </button>
+      <button class="sidebar-item" data-page="calendario" onclick="setPage('calendario')">
+        <span class="sidebar-icon">📅</span>
+        <span class="sidebar-label">Calendário</span>
+      </button>
+      <button class="sidebar-item" data-page="framework" onclick="setPage('framework')">
+        <span class="sidebar-icon">📐</span>
+        <span class="sidebar-label">Framework</span>
+      </button>
+    </div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Gestão</div>
+      <button class="sidebar-item" data-page="equipe" onclick="setPage('equipe')">
+        <span class="sidebar-icon">👥</span>
+        <span class="sidebar-label">Equipe</span>
+      </button>
+      <button class="sidebar-item" data-page="clientes" onclick="setPage('clientes')">
+        <span class="sidebar-icon">🏢</span>
+        <span class="sidebar-label">Clientes</span>
+      </button>
+      <button class="sidebar-item" data-page="health" onclick="setPage('health')">
+        <span class="sidebar-icon">❤️</span>
+        <span class="sidebar-label">Health Score</span>
+      </button>
+    </div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Ferramentas</div>
+      <button class="sidebar-item" data-page="gerador" onclick="setPage('gerador')">
+        <span class="sidebar-icon">✏️</span>
+        <span class="sidebar-label">Criar Demandas</span>
+      </button>
+      <button class="sidebar-item" data-page="integracao" onclick="setPage('integracao')">
+        <span class="sidebar-icon">⚡</span>
+        <span class="sidebar-label">ClickUp</span>
+      </button>
+    </div>
+  </div>
+
+  <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()">
+    <span class="sidebar-icon collapse-icon">◀</span>
+    <span class="sidebar-label">Recolher</span>
+  </button>
+</aside>
+
+<!-- ====== SIDEBAR OVERLAY (mobile) ====== -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+<!-- ====== CONTENT AREA ====== -->
+<main class="content-area">
 
 <!-- ====== DASHBOARD ====== -->
 <div class="page active" id="page-dashboard">
@@ -67,7 +135,7 @@
     </div>
   </div>
   <div id="task-filters" class="mb-16"></div>
-  <div id="bulk-bar-container" style="position:sticky;top:52px;z-index:50"></div>
+  <div id="bulk-bar-container" style="position:sticky;top:var(--topbar-h);z-index:50"></div>
   <div class="table-wrap" id="tasks-table"></div>
 </div>
 
@@ -173,7 +241,12 @@
   <div id="int-orphans" class="mt-20"></div>
 </div>
 
-<!-- ====== MODAL TAREFA ====== -->
+</main>
+</div>
+
+<!-- ====== MODAIS (fora do app-layout) ====== -->
+
+<!-- MODAL TAREFA -->
 <div class="modal-overlay" id="modal-task">
   <div class="modal">
     <div class="modal-header">
@@ -251,7 +324,7 @@
   </div>
 </div>
 
-<!-- ====== MODAL CLIENTE ====== -->
+<!-- MODAL CLIENTE -->
 <div class="modal-overlay" id="modal-client">
   <div class="modal">
     <div class="modal-header">
@@ -277,7 +350,7 @@
   </div>
 </div>
 
-<!-- ====== MODAL DETALHE TAREFA ====== -->
+<!-- MODAL DETALHE TAREFA -->
 <div class="modal-overlay" id="modal-task-detail">
   <div class="modal">
     <div class="modal-header">
@@ -293,7 +366,7 @@
   </div>
 </div>
 
-<!-- ====== MODAL MOTIVOS DE REVISÃO ====== -->
+<!-- MODAL MOTIVOS DE REVISÃO -->
 <div class="modal-overlay" id="modal-revisao">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -314,10 +387,10 @@
   </div>
 </div>
 
-<script src="js/data.js?v=20260407a"></script>
-<script src="js/utils.js?v=20260407a"></script>
+<script src="js/data.js?v=20260407b"></script>
+<script src="js/utils.js?v=20260407b"></script>
 <script src="js/clickup.js?v=20260406b"></script>
-<script src="js/pages.js?v=20260407a"></script>
-<script src="js/app.js?v=20260407a"></script>
+<script src="js/pages.js?v=20260407b"></script>
+<script src="js/app.js?v=20260407b"></script>
 </body>
 </html>
