@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CD Sistema — Agência</title>
-<link rel="stylesheet" href="styles.css?v=20260407b">
+<link rel="stylesheet" href="styles.css?v=20260409e">
 </head>
 <body>
 
@@ -73,6 +73,10 @@
       <button class="sidebar-item" data-page="integracao" onclick="setPage('integracao')">
         <span class="sidebar-icon">⚡</span>
         <span class="sidebar-label">ClickUp</span>
+      </button>
+      <button class="sidebar-item" data-page="relatorio" onclick="setPage('relatorio')">
+        <span class="sidebar-icon">📊</span>
+        <span class="sidebar-label">Relatórios</span>
       </button>
     </div>
   </div>
@@ -186,6 +190,7 @@
     <div class="flex-center gap-8">
       <button class="filter-btn active" id="ctab-visao"  onclick="clientesTab('visao')">Visão Geral</button>
       <button class="filter-btn"        id="ctab-fluxo" onclick="clientesTab('fluxo')">Fluxo de Produção</button>
+      <button class="filter-btn"        id="ctab-performance" onclick="clientesTab('performance')">Performance</button>
       <button class="btn btn-ghost btn-sm" onclick="openModal('client')">+ Novo Cliente</button>
     </div>
   </div>
@@ -219,6 +224,9 @@
 <div class="page" id="page-health">
   <div id="health-content"></div>
 </div>
+
+<!-- ====== RELATÓRIOS ====== -->
+<div class="page" id="page-relatorio"></div>
 
 <!-- ====== INTEGRAÇÃO CLICKUP ====== -->
 <div class="page" id="page-integracao">
@@ -387,10 +395,93 @@
   </div>
 </div>
 
-<script src="js/data.js?v=20260407b"></script>
-<script src="js/utils.js?v=20260407b"></script>
-<script src="js/clickup.js?v=20260407b"></script>
-<script src="js/pages.js?v=20260407c"></script>
-<script src="js/app.js?v=20260407b"></script>
+<!-- MODAL IMPORT EM MASSA -->
+<div class="modal-overlay" id="modal-massa">
+  <div class="modal" style="max-width:750px">
+    <div class="modal-header">
+      <h2>Import em Massa</h2>
+      <button class="modal-close" onclick="closeModal('massa')">×</button>
+    </div>
+
+    <div class="text-sm text-muted mb-16">Selecione uma pasta ou arquivos CSV. O sistema detecta automaticamente cliente, mês e plataforma.</div>
+
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('mass-folder-input').click()">📁 Selecionar Pasta</button>
+      <input type="file" id="mass-folder-input" webkitdirectory style="display:none" onchange="handleMassFolder(this)">
+
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('mass-files-input').click()">📄 Selecionar Arquivos</button>
+      <input type="file" id="mass-files-input" accept=".csv" multiple style="display:none" onchange="handleMassFiles(this)">
+    </div>
+
+    <div id="mass-progress" style="display:none;padding:12px;text-align:center;color:var(--accent);font-weight:600;font-size:13px"></div>
+
+    <div id="mass-preview"></div>
+
+    <div id="mass-actions" class="modal-footer" style="display:none">
+      <button class="btn btn-ghost" onclick="closeModal('massa')">Cancelar</button>
+      <button class="btn btn-primary" id="mass-generate-btn" onclick="massImportExecute()">Gerar Todos os Relatórios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO -->
+<div class="modal-overlay" id="modal-relatorio">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h2>Novo Relatório de Performance</h2>
+      <button class="modal-close" onclick="closeModal('relatorio')">×</button>
+    </div>
+
+    <div class="grid grid-3 gap-16 mb-16">
+      <div class="form-group">
+        <label>Cliente</label>
+        <select id="rel-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label>Mês</label>
+        <select id="rel-mes">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ano</label>
+        <input type="number" id="rel-ano" min="2020" max="2030">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload de CSVs <span class="text-faint text-xs">(Instagram, Facebook, YouTube, TikTok)</span></label>
+      <div class="rel-drop-zone" id="rel-drop-zone" onclick="document.getElementById('rel-upload-input').click()">
+        <div style="font-size:32px;margin-bottom:8px">📁</div>
+        <div>Arraste CSVs aqui ou clique para selecionar</div>
+        <div class="text-xs text-faint mt-4">Aceita múltiplos arquivos · Detecção automática de plataforma</div>
+        <input type="file" id="rel-upload-input" accept=".csv" multiple style="display:none" onchange="handleRelCSVUpload(this)">
+      </div>
+    </div>
+
+    <div id="rel-file-list" class="mb-16">
+      <div class="text-muted text-sm" style="padding:12px">Nenhum arquivo carregado</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('relatorio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="gerarRelatorio()">Gerar Relatório</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="js/data.js?v=20260409e"></script>
+<script src="js/utils.js?v=20260409e"></script>
+<script src="js/clickup.js?v=20260409e"></script>
+<script src="js/pages.js?v=20260409e"></script>
+<script src="js/relatorio.js?v=20260409e"></script>
+<script src="js/app.js?v=20260409e"></script>
 </body>
 </html>

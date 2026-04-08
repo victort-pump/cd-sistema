@@ -386,6 +386,9 @@ function salvarLogCriacao(d) {
 function saveAlocacao(d)     { localStorage.setItem('cd_alocacao',  JSON.stringify(d)); Object.assign(ALOCACAO, d); }
 function saveFluxoSemanal(d) { localStorage.setItem('cd_fluxo',     JSON.stringify(d)); Object.assign(FLUXO_SEMANAL, d); }
 
+function getRelatorios()     { return _lsGet('cd_relatorios') || []; }
+function saveRelatorios(d)   { localStorage.setItem('cd_relatorios', JSON.stringify(d)); }
+
 function clientById(id)   { return getClients().find(c => c.id === id); }
 function isTrafegoOnly(c) { return c?.tipo === 'trafego'; }
 function memberById(id)   { return getTeam().find(m => m.id === id); }

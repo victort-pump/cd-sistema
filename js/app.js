@@ -12,7 +12,8 @@ const PAGE_META = {
   clientes:   { group: 'Gestão',       label: 'Clientes' },
   health:     { group: 'Gestão',       label: 'Health Score' },
   gerador:    { group: 'Ferramentas',  label: 'Criar Demandas' },
-  integracao: { group: 'Ferramentas',  label: 'ClickUp' }
+  integracao: { group: 'Ferramentas',  label: 'ClickUp' },
+  relatorio:  { group: 'Ferramentas',  label: 'Relatórios' }
 };
 
 function setPage(p) {
@@ -67,6 +68,7 @@ function renderPage(p) {
   else if (p==='gerador')    renderGerador();
   else if (p==='integracao') renderIntegracao();
   else if (p==='health')     renderHealth();
+  else if (p==='relatorio')  renderRelatorio();
 }
 
 // =====================================================
@@ -81,6 +83,10 @@ function openModal(type) {
     document.getElementById('modal-task-title').textContent = 'Nova Tarefa';
     populateTaskForm();
     clearTaskForm();
+  }
+  if (type === 'relatorio') {
+    initRelatorioModal();
+    setTimeout(initDragDrop, 50);
   }
 }
 

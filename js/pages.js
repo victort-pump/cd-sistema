@@ -828,13 +828,14 @@ let _clientesTab = 'visao';
 
 function clientesTab(tab) {
   _clientesTab = tab;
-  ['visao','alocacao','fluxo'].forEach(t => {
+  ['visao','alocacao','fluxo','performance'].forEach(t => {
     const el = document.getElementById('ctab-'+t);
     if (el) el.classList.toggle('active', t===tab);
   });
-  if (tab==='visao')    renderClientesVisao();
-  if (tab==='alocacao') renderClientesAlocacao();
-  if (tab==='fluxo')    renderClientesFluxo();
+  if (tab==='visao')        renderClientesVisao();
+  if (tab==='alocacao')     renderClientesAlocacao();
+  if (tab==='fluxo')        renderClientesFluxo();
+  if (tab==='performance')  renderClientesPerformance();
 }
 
 function renderClientes() {
