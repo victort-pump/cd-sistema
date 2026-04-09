@@ -199,6 +199,7 @@ function parseIGFeed(rows) {
   const ci = {
     desc: col(headers, 'Descrição'),
     tipo: col(headers, 'Tipo de post'),
+    publicacao: colIncludes(headers, 'horário de publicação'),
     data: col(headers, 'Data'),
     views: col(headers, 'Visualizações'),
     alcance: col(headers, 'Alcance'),
@@ -217,6 +218,7 @@ function parseIGFeed(rows) {
       descricao: r[ci.desc] || '',
       tipo: r[ci.tipo] || '',
       data: r[ci.data] || '',
+      publicacao: ci.publicacao >= 0 ? (r[ci.publicacao] || '') : '',
       visualizacoes: num(r[ci.views]),
       alcance: num(r[ci.alcance]),
       curtidas: num(r[ci.curtidas]),
@@ -247,6 +249,7 @@ function parseIGStories(rows) {
   const headers = rows[0];
   const ci = {
     desc: col(headers, 'Descrição'),
+    publicacao: colIncludes(headers, 'horário de publicação'),
     data: col(headers, 'Data'),
     views: col(headers, 'Visualizações'),
     alcance: col(headers, 'Alcance'),
@@ -266,6 +269,7 @@ function parseIGStories(rows) {
     stories.push({
       descricao: r[ci.desc] || '',
       data: r[ci.data] || '',
+      publicacao: ci.publicacao >= 0 ? (r[ci.publicacao] || '') : '',
       visualizacoes: num(r[ci.views]),
       alcance: num(r[ci.alcance]),
       curtidas: num(r[ci.curtidas]),
@@ -330,6 +334,7 @@ function parseFBPosts(rows) {
     titulo: col(headers, 'Título') >= 0 ? col(headers, 'Título') : colIncludes(headers, 'descrição'),
     desc: colIncludes(headers, 'descrição'),
     tipo: col(headers, 'Tipo de post'),
+    publicacao: colIncludes(headers, 'horário de publicação'),
     data: col(headers, 'Data'),
     views: col(headers, 'Visualizações'),
     alcance: col(headers, 'Alcance'),
@@ -348,6 +353,7 @@ function parseFBPosts(rows) {
       descricao: r[ci.desc] || '',
       tipo: r[ci.tipo] || '',
       data: r[ci.data] || '',
+      publicacao: ci.publicacao >= 0 ? (r[ci.publicacao] || '') : '',
       visualizacoes: num(r[ci.views]),
       alcance: num(r[ci.alcance]),
       reacoes: num(r[ci.reacoes]),
@@ -376,6 +382,7 @@ function parseFBVideos(rows) {
   const headers = rows[0];
   const ci = {
     titulo: col(headers, 'Título') >= 0 ? col(headers, 'Título') : colIncludes(headers, 'nome da página'),
+    publicacao: colIncludes(headers, 'horário de publicação'),
     data: col(headers, 'Data'),
     alcance: col(headers, 'Alcance'),
     views3s: colIncludes(headers, 'visualizações de 3 segundos do vídeo'),
@@ -396,6 +403,7 @@ function parseFBVideos(rows) {
     videos.push({
       titulo: r[ci.titulo] || '',
       data: r[ci.data] || '',
+      publicacao: ci.publicacao >= 0 ? (r[ci.publicacao] || '') : '',
       alcance: num(r[ci.alcance]),
       views3s: ci.views3s >= 0 ? num(r[ci.views3s]) : 0,
       views1min: ci.views1min >= 0 ? num(r[ci.views1min]) : 0,
@@ -912,6 +920,147 @@ function processCSVFile(text, fileName, relativePath) {
 }
 
 // =====================================================
+// SPLIT MULTI-MONTH CSVs into separate results per month
+// =====================================================
+function splitByMonth(parsed) {
+  // Only split types that have individual posts/videos with dates
+  const splittableTypes = ['ig_feed','ig_stories','fb_posts','fb_videos','fb_page_daily','yt_total_diario','yt_grafico_diario','tiktok_overview'];
+  if (!parsed || parsed.type === 'unknown' || !splittableTypes.includes(parsed.type)) return [parsed];
+
+  // Get the items with dates
+  const items = parsed.posts || parsed.daily || [];
+  if (!items.length) return [parsed];
+
+  // Extract month from each item's date field
+  function getMonth(item) {
+    // Prefer publicacao (publication date) over data (which is often "Total")
+    const dateStr = item.publicacao || (item.data !== 'Total' ? item.data : '') || '';
+    // "03/31/2026 05:01" → month 3
+    let m = dateStr.match(/^(\d{2})\/\d{2}\/(\d{4})/);
+    if (m) return { mes: parseInt(m[1]), ano: parseInt(m[2]) };
+    // "2026-03-01" → month 3
+    m = dateStr.match(/^(\d{4})-(\d{2})/);
+    if (m) return { mes: parseInt(m[2]), ano: parseInt(m[1]) };
+    // "2026-03-01T00:00:00" → month 3
+    m = dateStr.match(/(\d{4})-(\d{2}).*T/);
+    if (m) return { mes: parseInt(m[2]), ano: parseInt(m[1]) };
+    return null;
+  }
+
+  // Group items by month
+  const byMonth = {};
+  let hasMultipleMonths = false;
+  let firstKey = null;
+
+  items.forEach(item => {
+    const d = getMonth(item);
+    const key = d ? `${d.ano}_${d.mes}` : 'unknown';
+    if (!firstKey) firstKey = key;
+    else if (key !== firstKey && key !== 'unknown') hasMultipleMonths = true;
+    if (!byMonth[key]) byMonth[key] = { mes: d?.mes || 0, ano: d?.ano || 0, items: [] };
+    byMonth[key].items.push(item);
+  });
+
+  // If only 1 month (or no dates), return as-is
+  if (!hasMultipleMonths) return [parsed];
+
+  // Split into separate results per month
+  const results = [];
+  for (const [key, group] of Object.entries(byMonth)) {
+    if (key === 'unknown') continue; // skip items without dates
+
+    // Re-aggregate for this month's subset
+    const subset = group.items;
+    let aggregated;
+
+    if (parsed.type === 'ig_feed') {
+      aggregated = {
+        posts: subset.length,
+        visualizacoes: subset.reduce((a,p) => a + (p.visualizacoes||0), 0),
+        alcance: subset.reduce((a,p) => a + (p.alcance||0), 0),
+        curtidas: subset.reduce((a,p) => a + (p.curtidas||0), 0),
+        compartilhamentos: subset.reduce((a,p) => a + (p.compartilhamentos||0), 0),
+        seguimentos: subset.reduce((a,p) => a + (p.seguimentos||0), 0),
+        comentarios: subset.reduce((a,p) => a + (p.comentarios||0), 0),
+        salvamentos: subset.reduce((a,p) => a + (p.salvamentos||0), 0)
+      };
+      aggregated.engajamento = aggregated.curtidas + aggregated.comentarios + aggregated.compartilhamentos + aggregated.salvamentos;
+    } else if (parsed.type === 'ig_stories') {
+      aggregated = {
+        posts: subset.length,
+        visualizacoes: subset.reduce((a,p) => a + (p.visualizacoes||0), 0),
+        alcance: subset.reduce((a,p) => a + (p.alcance||0), 0),
+        curtidas: subset.reduce((a,p) => a + (p.curtidas||0), 0),
+        compartilhamentos: subset.reduce((a,p) => a + (p.compartilhamentos||0), 0),
+        seguimentos: subset.reduce((a,p) => a + (p.seguimentos||0), 0),
+        respostas: subset.reduce((a,p) => a + (p.respostas||0), 0),
+        navegacao: subset.reduce((a,p) => a + (p.navegacao||0), 0),
+        cliquesLink: subset.reduce((a,p) => a + (p.cliquesLink||0), 0)
+      };
+    } else if (parsed.type === 'fb_posts') {
+      aggregated = {
+        posts: subset.length,
+        visualizacoes: subset.reduce((a,p) => a + (p.visualizacoes||0), 0),
+        alcance: subset.reduce((a,p) => a + (p.alcance||0), 0),
+        reacoes: subset.reduce((a,p) => a + (p.reacoes||0), 0),
+        comentarios: subset.reduce((a,p) => a + (p.comentarios||0), 0),
+        compartilhamentos: subset.reduce((a,p) => a + (p.compartilhamentos||0), 0),
+        cliques: subset.reduce((a,p) => a + (p.cliques||0), 0)
+      };
+      aggregated.engajamento = aggregated.reacoes + aggregated.comentarios + aggregated.compartilhamentos;
+    } else if (parsed.type === 'fb_videos') {
+      aggregated = {
+        videos: subset.length,
+        alcance: subset.reduce((a,p) => a + (p.alcance||0), 0),
+        views3s: subset.reduce((a,p) => a + (p.views3s||0), 0),
+        views1min: subset.reduce((a,p) => a + (p.views1min||0), 0),
+        reacoes: subset.reduce((a,p) => a + (p.reacoes||0), 0),
+        comentarios: subset.reduce((a,p) => a + (p.comentarios||0), 0),
+        compartilhamentos: subset.reduce((a,p) => a + (p.compartilhamentos||0), 0)
+      };
+    } else if (parsed.type === 'fb_page_daily' || parsed.type === 'yt_total_diario' || parsed.type === 'yt_grafico_diario') {
+      aggregated = {
+        totalViews: subset.reduce((a,d) => a + (d.visualizacoes||d.engajamentos||0), 0),
+        dias: subset.length,
+        viewsDiarias: subset.map(d => d.visualizacoes||d.engajamentos||0)
+      };
+      if (parsed.type === 'fb_page_daily') {
+        aggregated.totalEngajamentos = subset.reduce((a,d) => a + (d.engajamentos||0), 0);
+        aggregated.mediaEngajamentos = subset.length ? Math.round(aggregated.totalEngajamentos / subset.length) : 0;
+        aggregated.feedbacksNegativos = subset.reduce((a,d) => a + (d.feedbacksNegativos||0), 0);
+        aggregated.diasComDados = subset.length;
+        aggregated.engajamentosDiarios = subset.map(d => d.engajamentos||0);
+      }
+    } else if (parsed.type === 'tiktok_overview') {
+      aggregated = {
+        totalVideoViews: subset.reduce((a,d) => a + (d.videoViews||0), 0),
+        totalProfileViews: subset.reduce((a,d) => a + (d.profileViews||0), 0),
+        totalLikes: subset.reduce((a,d) => a + (d.likes||0), 0),
+        totalComments: subset.reduce((a,d) => a + (d.comments||0), 0),
+        totalShares: subset.reduce((a,d) => a + (d.shares||0), 0),
+        dias: subset.length,
+        viewsDiarias: subset.map(d => d.videoViews||0)
+      };
+      aggregated.totalEngajamento = aggregated.totalLikes + aggregated.totalComments + aggregated.totalShares;
+    } else {
+      aggregated = parsed.aggregated; // fallback
+    }
+
+    results.push({
+      ...parsed,
+      aggregated,
+      posts: (parsed.type.includes('daily') || parsed.type === 'tiktok_overview' || parsed.type === 'yt_grafico_diario') ? undefined : subset,
+      daily: (parsed.type.includes('daily') || parsed.type === 'tiktok_overview' || parsed.type === 'yt_grafico_diario') ? subset : undefined,
+      extractedDate: { mes: group.mes, ano: group.ano },
+      fileName: `${parsed.fileName} [${MESES_PT[group.mes]}]`,
+      _splitMonth: true
+    });
+  }
+
+  return results.length ? results : [parsed];
+}
+
+// =====================================================
 // AGGREGATE ALL FILES INTO REPORT
 // =====================================================
 function buildRelatorio(clienteId, ano, mes, parsedFiles) {
@@ -1068,7 +1217,7 @@ function renderRelatorio() {
     <div class="flex-between mb-20">
       <div>
         <div class="section-title mb-4">Base de Dados — Relatórios</div>
-        <div class="text-muted text-sm">Registro mensal de performance por cliente. Para comparativos, acesse <a href="#" onclick="_perfClienteId='';setPage('clientes');setTimeout(()=>clientesTab('performance'),100);return false" style="color:var(--accent);font-weight:600">Clientes → Performance</a></div>
+        <div class="text-muted text-sm">Registro mensal de performance por cliente. Para comparativos, acesse <a href="#" onclick="_perfClienteId='';setPage('performance');return false" style="color:var(--accent);font-weight:600">Performance</a></div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost" onclick="openMassImport()">📦 Import em Massa</button>
@@ -1090,9 +1239,9 @@ function renderRelatorio() {
           <div class="text-xs text-muted">Meses registrados</div>
           <div style="font-size:24px;font-weight:800">${[...new Set(rels.map(r => r.ano+'-'+r.mes))].length}</div>
         </div>
-        <div class="card" style="text-align:center;padding:14px;cursor:pointer" onclick="_perfClienteId='';setPage('clientes');setTimeout(()=>clientesTab('performance'),100)">
+        <div class="card" style="text-align:center;padding:14px;cursor:pointer" onclick="_perfClienteId='';setPage('performance')">
           <div class="text-xs text-muted">Ver comparativos</div>
-          <div style="font-size:16px;font-weight:700;color:var(--accent)">Clientes → Performance</div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent)">Performance</div>
         </div>
       </div>
     ` : ''}
@@ -1145,7 +1294,8 @@ function renderRelatorio() {
                 <td>
                   <button class="btn btn-ghost btn-sm rel-btn-add" onclick="document.getElementById('rel-add-${r.id}').click()" title="Adicionar CSVs">📁</button>
                   <input type="file" id="rel-add-${r.id}" accept=".csv" multiple style="display:none" onchange="handleAddCSVsToReport('${r.id}', this)">
-                  <button class="btn btn-ghost btn-sm" onclick="_perfClienteId='${r.clienteId}';setPage('clientes');setTimeout(()=>clientesTab('performance'),100)" title="Ver performance">📊</button>
+                  <button class="btn btn-ghost btn-sm" onclick="openDataManager('${r.id}')" title="Gerenciar dados">🔍</button>
+                  <button class="btn btn-ghost btn-sm" onclick="_perfClienteId='${r.clienteId}';setPage('performance')" title="Ver performance">📊</button>
                   <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteRelatorio('${r.id}')" title="Excluir registro">✕</button>
                 </td>
               </tr>`;
@@ -1908,7 +2058,8 @@ function handleRelCSVUpload(input) {
   Array.from(files).forEach(file => {
     readCSVFile(file, text => {
       const parsed = processCSVFile(text, file.name);
-      relUploadedFiles.push({ fileName: file.name, text, parsed });
+      const splits = splitByMonth(parsed);
+      splits.forEach(p => relUploadedFiles.push({ fileName: p.fileName || file.name, text, parsed: p }));
       renderRelFileList();
     });
   });
@@ -2004,9 +2155,20 @@ function handleAddCSVsToReport(relId, input) {
       if (parsed.type === 'unknown') {
         showToast(`"${file.name}" — formato não reconhecido`, true);
       } else {
-        mergeIntoRelatorio(rel, parsed);
-        addedCount++;
-        showToast(`✓ ${file.name} → ${parsed.label}`);
+        // Split multi-month CSVs and only merge the month matching this report
+        const splits = splitByMonth(parsed);
+        const matching = splits.filter(s => !s._splitMonth || (s.extractedDate?.mes === rel.mes && s.extractedDate?.ano === rel.ano));
+        if (matching.length) {
+          matching.forEach(s => mergeIntoRelatorio(rel, s));
+          addedCount++;
+          showToast(`✓ ${file.name} → ${parsed.label}${splits.length > 1 ? ` (filtrado: ${MESES_PT[rel.mes]})` : ''}`);
+        } else if (splits.length > 1) {
+          showToast(`"${file.name}" não contém dados de ${MESES_PT[rel.mes]}`, true);
+        } else {
+          mergeIntoRelatorio(rel, parsed);
+          addedCount++;
+          showToast(`✓ ${file.name} → ${parsed.label}`);
+        }
       }
 
       pending--;
@@ -2108,6 +2270,128 @@ function mergeIntoRelatorio(rel, parsed) {
   }
 }
 
+// =====================================================
+// GERENCIAR DADOS — visualizar e deletar por plataforma
+// =====================================================
+function openDataManager(relId) {
+  const rels = getRelatorios();
+  const rel = rels.find(r => r.id === relId);
+  if (!rel) return showToast('Relatório não encontrado', true);
+
+  const fmtN = n => (n||0).toLocaleString('pt-BR');
+
+  // Build data source inventory
+  const sources = [];
+
+  if (rel.instagram?.feed) {
+    const f = rel.instagram.feed;
+    sources.push({ key:'instagram.feed', icon:'📸', label:'Instagram — Feed', detail:`${f.posts} posts · Alcance: ${fmtN(f.alcance)} · Views: ${fmtN(f.visualizacoes)}`, rawKey:'igFeed', rawCount: rel._rawPosts?.igFeed?.length || 0 });
+  }
+  if (rel.instagram?.stories) {
+    const s = rel.instagram.stories;
+    sources.push({ key:'instagram.stories', icon:'📸', label:'Instagram — Stories', detail:`${s.posts} stories · Alcance: ${fmtN(s.alcance)}`, rawKey:'igStories', rawCount: rel._rawPosts?.igStories?.length || 0 });
+  }
+  if (rel.instagram?.account) {
+    const acc = rel.instagram.account;
+    const metrics = Object.keys(acc).filter(k => k !== 'demographics').map(k => k).join(', ');
+    const hasDemo = acc.demographics && (acc.demographics.ageGender?.length || acc.demographics.cities?.length);
+    sources.push({ key:'instagram.account', icon:'📸', label:'Instagram — Insights (Conta)', detail:`Métricas: ${metrics || 'nenhuma'}${hasDemo ? ' + Demografia' : ''}` });
+  }
+  if (rel.facebook?.posts) {
+    const p = rel.facebook.posts;
+    sources.push({ key:'facebook.posts', icon:'📘', label:'Facebook — Posts', detail:`${p.posts} posts · Alcance: ${fmtN(p.alcance)}`, rawKey:'fbPosts', rawCount: rel._rawPosts?.fbPosts?.length || 0 });
+  }
+  if (rel.facebook?.videos) {
+    const v = rel.facebook.videos;
+    sources.push({ key:'facebook.videos', icon:'📘', label:'Facebook — Vídeos', detail:`${v.videos} vídeos · Alcance: ${fmtN(v.alcance)}`, rawKey:'fbVideos', rawCount: rel._rawPosts?.fbVideos?.length || 0 });
+  }
+  if (rel.facebook?.page) {
+    const pg = rel.facebook.page;
+    sources.push({ key:'facebook.page', icon:'📘', label:'Facebook — Página (Diário)', detail:`${pg.diasComDados||0} dias · Engajamentos: ${fmtN(pg.totalEngajamentos)}` });
+  }
+  if (rel.youtube?.tabela) {
+    const yt = rel.youtube.tabela;
+    sources.push({ key:'youtube.tabela', icon:'▶️', label:'YouTube — Vídeos', detail:`${yt.videos||0} vídeos · Views: ${fmtN(yt.visualizacoes)}`, rawKey:'ytVideos', rawCount: rel._rawPosts?.ytVideos?.length || 0 });
+  }
+  if (rel.youtube?.totalDiario) {
+    const ytd = rel.youtube.totalDiario;
+    sources.push({ key:'youtube.totalDiario', icon:'▶️', label:'YouTube — Views Diárias', detail:`${ytd.dias||0} dias · Total: ${fmtN(ytd.totalViews)}` });
+  }
+  if (rel.tiktok?.overview) {
+    const tk = rel.tiktok.overview;
+    sources.push({ key:'tiktok.overview', icon:'🎵', label:'TikTok — Overview', detail:`${tk.dias||0} dias · Views: ${fmtN(tk.totalVideoViews)}`, rawKey:'tkDaily', rawCount: rel._rawPosts?.tkDaily?.length || 0 });
+  }
+
+  // Build modal HTML
+  const modalHTML = `
+    <div class="modal-overlay open" id="modal-data-manager" onclick="if(event.target===this)this.classList.remove('open')">
+      <div class="modal" style="max-width:650px">
+        <div class="modal-header">
+          <h2>Dados — ${rel.clienteNome} · ${rel.mesLabel} ${rel.ano}</h2>
+          <button class="modal-close" onclick="document.getElementById('modal-data-manager').classList.remove('open')">×</button>
+        </div>
+
+        <div class="text-sm text-muted mb-12">${sources.length} fonte(s) de dados carregadas</div>
+
+        ${sources.length === 0 ? '<div class="text-muted" style="text-align:center;padding:20px">Nenhum dado carregado neste relatório.</div>' : `
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${sources.map(s => `
+              <div class="card" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:700">${s.icon} ${s.label}</div>
+                  <div class="text-xs text-muted" style="margin-top:2px">${s.detail}</div>
+                  ${s.rawCount ? `<div class="text-xs text-faint" style="margin-top:1px">${s.rawCount} registro(s) individuais</div>` : ''}
+                </div>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);flex-shrink:0" onclick="_deleteDataSource('${relId}','${s.key}'${s.rawKey ? ",'"+s.rawKey+"'" : ''})">🗑 Remover</button>
+              </div>
+            `).join('')}
+          </div>
+        `}
+
+        <div class="modal-footer" style="margin-top:16px">
+          <button class="btn btn-ghost" onclick="document.getElementById('modal-data-manager').classList.remove('open')">Fechar</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Remove existing modal if any
+  const existing = document.getElementById('modal-data-manager');
+  if (existing) existing.remove();
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function _deleteDataSource(relId, key, rawKey) {
+  if (!confirm(`Remover "${key}" deste relatório?`)) return;
+
+  const rels = getRelatorios();
+  const rel = rels.find(r => r.id === relId);
+  if (!rel) return;
+
+  // Navigate the key path (e.g., "instagram.feed" → rel.instagram.feed = null)
+  const parts = key.split('.');
+  if (parts.length === 2) {
+    if (rel[parts[0]]) {
+      rel[parts[0]][parts[1]] = null;
+    }
+  }
+
+  // Also clear raw posts if applicable
+  if (rawKey && rel._rawPosts) {
+    rel._rawPosts[rawKey] = [];
+  }
+
+  rel.updatedAt = new Date().toISOString();
+  saveRelatorios(rels);
+  showToast(`"${key}" removido do relatório`);
+
+  // Re-open the data manager to refresh
+  openDataManager(relId);
+  // Also refresh the list behind
+  renderRelatorio();
+}
+
 function deleteRelatorio(id) {
   if (!confirm('Excluir este relatório?')) return;
   const rels = getRelatorios().filter(r => r.id !== id);
@@ -2143,7 +2427,8 @@ function initDragDrop() {
       if (!file.name.endsWith('.csv')) return;
       readCSVFile(file, text => {
         const parsed = processCSVFile(text, file.name);
-        relUploadedFiles.push({ fileName: file.name, text, parsed });
+        const splits = splitByMonth(parsed);
+        splits.forEach(p => relUploadedFiles.push({ fileName: p.fileName || file.name, text, parsed: p }));
         renderRelFileList();
       });
     });
@@ -2157,11 +2442,88 @@ let _perfClienteId = '';
 let _perfMesA = '';
 let _perfMesB = '';
 
-function renderClientesPerformance() {
+function renderPerformancePage() {
   consolidateDuplicates();
-  const container = document.getElementById('clientes-tab');
+  const container = document.getElementById('page-performance');
+  _renderPerformanceContent(container);
+}
+
+function _perfInlineUpload(input) {
+  const files = input.files;
+  if (!files.length) return;
+
+  const clienteId = document.getElementById('perf-upload-cliente')?.value;
+  const mes = +document.getElementById('perf-upload-mes')?.value;
+  const ano = +document.getElementById('perf-upload-ano')?.value;
+
+  if (!clienteId) return showToast('Selecione um cliente', true);
+  if (!mes || !ano) return showToast('Selecione mês e ano', true);
+
+  const statusEl = document.getElementById('perf-upload-status');
+  let processed = 0, added = 0;
+
+  Array.from(files).forEach(file => {
+    readCSVFile(file, text => {
+      const parsed = processCSVFile(text, file.name);
+      const splits = splitByMonth(parsed);
+
+      splits.forEach(p => {
+        if (p.type === 'unknown') return;
+        const targetMes = p._splitMonth ? p.extractedDate?.mes : mes;
+        const targetAno = p._splitMonth ? p.extractedDate?.ano : ano;
+
+        const rels = getRelatorios();
+        const existingIdx = rels.findIndex(r => r.clienteId === clienteId && r.mes === targetMes && r.ano === targetAno);
+        if (existingIdx >= 0) {
+          mergeIntoRelatorio(rels[existingIdx], p);
+          rels[existingIdx].updatedAt = new Date().toISOString();
+        } else {
+          rels.push(buildRelatorio(clienteId, targetAno, targetMes, [p]));
+        }
+        saveRelatorios(rels);
+        added++;
+      });
+
+      processed++;
+      if (statusEl) statusEl.innerHTML = `<span style="color:var(--green)">✓ ${processed} arquivo(s) processado(s), ${added} dado(s) adicionado(s)</span>`;
+
+      if (processed === files.length) {
+        // Refresh the Performance view
+        _perfClienteId = clienteId;
+        setTimeout(() => renderPerformancePage(), 200);
+        showToast(`${added} dado(s) adicionado(s)!`);
+      }
+    });
+  });
+
+  input.value = '';
+}
+
+// Legacy: redirect from Clientes tab to Performance page
+function renderClientesPerformance() {
+  setPage('performance');
+}
+
+function _saveRecentClient(clienteId) {
+  if (!clienteId) return;
+  let recent = JSON.parse(localStorage.getItem('cd_recent_clients') || '[]');
+  recent = recent.filter(id => id !== clienteId);
+  recent.unshift(clienteId);
+  if (recent.length > 5) recent.length = 5;
+  localStorage.setItem('cd_recent_clients', JSON.stringify(recent));
+}
+
+function _getRecentClients() {
+  return JSON.parse(localStorage.getItem('cd_recent_clients') || '[]');
+}
+
+function _renderPerformanceContent(container) {
+  // Restore last selection
+  if (!_perfClienteId) _perfClienteId = localStorage.getItem('cd_perf_last_client') || '';
+
   const rels = getRelatorios();
-  const clientes = getClients().filter(c => rels.some(r => r.clienteId === c.id));
+  const allClients = getClients();
+  const clientes = allClients.filter(c => rels.some(r => r.clienteId === c.id));
 
   // If no reports exist at all
   if (!rels.length) {
@@ -2184,43 +2546,86 @@ function renderClientesPerformance() {
   const relB = _perfMesB ? rels.find(r => r.id === _perfMesB) : null;
 
   container.innerHTML = `
-    <div class="section-title mb-12">Comparativo de Performance</div>
+    <div class="flex-between mb-12">
+      <div class="section-title mb-0">Performance</div>
+      <div class="flex-center gap-6">
+        ${_getRecentClients().map(id => {
+          const c = allClients.find(cl => cl.id === id);
+          return c ? `<button class="tag tag-clickable ${_perfClienteId===id?'tag-purple':''}" onclick="_perfClienteId='${id}';_perfMesA='';_perfMesB='';localStorage.setItem('cd_perf_last_client','${id}');renderPerformancePage()">${c.nome}</button>` : '';
+        }).filter(Boolean).join('')}
+      </div>
+    </div>
 
     <!-- Seletores -->
     <div class="card mb-20">
       <div class="grid grid-3 gap-16" style="align-items:end">
         <div class="form-group mb-0">
           <label>Cliente</label>
-          <select class="input-sm" style="width:100%" onchange="_perfClienteId=this.value;_perfMesA='';_perfMesB='';renderClientesPerformance()">
+          <select class="input-sm" style="width:100%" onchange="_perfClienteId=this.value;_perfMesA='';_perfMesB='';localStorage.setItem('cd_perf_last_client',this.value);_saveRecentClient(this.value);renderPerformancePage()">
             <option value="">Selecione um cliente</option>
             ${clientes.map(c => `<option value="${c.id}" ${_perfClienteId===c.id?'selected':''}>${c.nome}</option>`).join('')}
           </select>
         </div>
         <div class="form-group mb-0">
           <label>Mês A</label>
-          <select class="input-sm" style="width:100%" onchange="_perfMesA=this.value;renderClientesPerformance()" ${!_perfClienteId?'disabled':''}>
+          <select class="input-sm" style="width:100%" onchange="_perfMesA=this.value;renderPerformancePage()" ${!_perfClienteId?'disabled':''}>
             <option value="">Selecione</option>
             ${mesesDisponiveis.map(m => `<option value="${m.value}" ${_perfMesA===m.value?'selected':''}>${m.label}</option>`).join('')}
           </select>
         </div>
         <div class="form-group mb-0">
           <label>Mês B</label>
-          <select class="input-sm" style="width:100%" onchange="_perfMesB=this.value;renderClientesPerformance()" ${!_perfClienteId?'disabled':''}>
+          <select class="input-sm" style="width:100%" onchange="_perfMesB=this.value;renderPerformancePage()" ${!_perfClienteId?'disabled':''}>
             <option value="">Selecione</option>
             ${mesesDisponiveis.filter(m => m.value !== _perfMesA).map(m => `<option value="${m.value}" ${_perfMesB===m.value?'selected':''}>${m.label}</option>`).join('')}
           </select>
         </div>
       </div>
       ${_perfClienteId && !mesesDisponiveis.length ? `
-        <div class="text-sm text-muted mt-12">Nenhum relatório para este cliente. <a href="#" onclick="setPage('relatorio');return false" style="color:var(--accent)">Criar relatório</a></div>
+        <div class="text-sm text-muted mt-12">Nenhum relatório para este cliente. Envie CSVs abaixo para começar.</div>
       ` : ''}
       ${_perfClienteId && mesesDisponiveis.length === 1 ? `
-        <div class="text-sm text-muted mt-12">Apenas 1 mês disponível. Crie mais relatórios para comparar.</div>
+        <div class="text-sm text-muted mt-12">Apenas 1 mês disponível. Envie mais CSVs para comparar.</div>
       ` : ''}
     </div>
 
+    <!-- Upload Inline -->
+    <details class="card mb-16" style="cursor:default">
+      <summary style="cursor:pointer;font-weight:600;font-size:14px;padding:4px 0">📁 Enviar Dados (CSV)</summary>
+      <div style="padding-top:12px">
+        <div class="grid grid-3 gap-12 mb-12">
+          <div class="form-group mb-0">
+            <label class="text-xs">Cliente</label>
+            <select class="input-sm" id="perf-upload-cliente" style="width:100%">
+              ${getClients().map(c => `<option value="${c.id}" ${_perfClienteId===c.id?'selected':''}>${c.nome}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group mb-0">
+            <label class="text-xs">Mês</label>
+            <select class="input-sm" id="perf-upload-mes" style="width:100%">
+              ${MESES_PT.slice(1).map((m,i) => `<option value="${i+1}" ${(i+1)===(new Date().getMonth())?'selected':''}>${m}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group mb-0">
+            <label class="text-xs">Ano</label>
+            <input type="number" class="input-sm" id="perf-upload-ano" value="${new Date().getFullYear()}" min="2020" max="2030" style="width:100%">
+          </div>
+        </div>
+        <div class="rel-drop-zone" onclick="document.getElementById('perf-upload-input').click()" style="padding:16px">
+          <div>📁 Arraste CSVs ou clique para selecionar</div>
+          <input type="file" id="perf-upload-input" accept=".csv" multiple style="display:none" onchange="_perfInlineUpload(this)">
+        </div>
+        <div id="perf-upload-status" class="text-sm mt-8"></div>
+      </div>
+    </details>
+
     <!-- Comparativo -->
     <div id="perf-comparativo"></div>
+
+    <!-- Link para base de dados completa -->
+    <div style="text-align:center;margin-top:16px">
+      <a href="#" onclick="setPage('relatorio');return false" class="text-xs" style="color:var(--text-muted)">Gerenciar base de dados completa →</a>
+    </div>
   `;
 
   if (relA && relB) {
@@ -2462,15 +2867,19 @@ function _perfTabInstagram(relA, relB) {
     html += '</div>';
 
     // Demographics
-    if (acc.demographics?.ageGender?.length || acc.demographics?.cities?.length) {
+    if (acc.demographics?.ageGender?.length || acc.demographics?.cities?.length || acc.demographics?.countries?.length) {
       html += '<div class="rel-subsection-title">Público</div>';
-      html += '<div class="rel-grid-2">';
+      html += '<div class="rel-grid-2" style="gap:10px">';
 
       if (acc.demographics?.ageGender?.length) {
-        html += '<div class="rel-chart-wrap" style="height:250px;overflow:hidden"><div class="rel-chart-title">Faixa Etária</div><canvas id="chart-ig-age"></canvas></div>';
+        html += '<div class="rel-chart-wrap"><div class="rel-chart-title">Gênero</div><div style="max-width:200px;margin:0 auto"><canvas id="chart-ig-gender"></canvas></div></div>';
+        html += '<div class="rel-chart-wrap"><div class="rel-chart-title">Faixa Etária</div><div style="max-width:200px;margin:0 auto"><canvas id="chart-ig-age"></canvas></div></div>';
       }
       if (acc.demographics?.cities?.length) {
-        html += '<div class="rel-chart-wrap" style="height:250px;overflow:hidden"><div class="rel-chart-title">Top Cidades</div><canvas id="chart-ig-cities"></canvas></div>';
+        html += '<div class="rel-chart-wrap"><div class="rel-chart-title">Top Cidades</div><div style="max-width:200px;margin:0 auto"><canvas id="chart-ig-cities"></canvas></div></div>';
+      }
+      if (acc.demographics?.countries?.length) {
+        html += '<div class="rel-chart-wrap"><div class="rel-chart-title">Top Países</div><div style="max-width:200px;margin:0 auto"><canvas id="chart-ig-countries"></canvas></div></div>';
       }
 
       html += '</div>';
@@ -2799,9 +3208,27 @@ function _initChartIG(relA, relB) {
   }
   relChartInstances.push(new Chart(canvas, { type:'bar', data:{labels,datasets}, options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}} }));
 
-  // Pie chart — Age/Gender
-  const ageCanvas = document.getElementById('chart-ig-age');
+  // Pie chart — Gender
   const acc = latest.instagram?.account;
+  const genderCanvas = document.getElementById('chart-ig-gender');
+  if (genderCanvas && acc?.demographics?.ageGender?.length) {
+    const ag = acc.demographics.ageGender;
+    const totalH = +(ag.reduce((a, g) => a + g.homens, 0).toFixed(1));
+    const totalM = +(ag.reduce((a, g) => a + g.mulheres, 0).toFixed(1));
+    const totalNI = +(100 - totalH - totalM).toFixed(1);
+    const gLabels = [`Homens ${totalH}%`, `Mulheres ${totalM}%`];
+    const gData = [totalH, totalM];
+    const gColors = ['#3C71DD', '#DD3C8C'];
+    if (totalNI > 0.5) { gLabels.push(`N/I ${totalNI}%`); gData.push(totalNI); gColors.push('#cfc5b0'); }
+    relChartInstances.push(new Chart(genderCanvas, {
+      type: 'doughnut',
+      data: { labels: gLabels, datasets: [{ data: gData, backgroundColor: gColors, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8, boxWidth: 12 } } } }
+    }));
+  }
+
+  // Pie chart — Age
+  const ageCanvas = document.getElementById('chart-ig-age');
   if (ageCanvas && acc?.demographics?.ageGender?.length) {
     const ag = acc.demographics.ageGender;
     const pieColors = ['#DD3C8C','#E85D9F','#F280B4','#F7A3C8','#FACFDD','#FDE5EE'];
@@ -2815,7 +3242,7 @@ function _initChartIG(relA, relB) {
           borderWidth: 0
         }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8, boxWidth: 12 } } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6, boxWidth: 10 } } } }
     }));
   }
 
@@ -2834,7 +3261,22 @@ function _initChartIG(relA, relB) {
           borderWidth: 0
         }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6, boxWidth: 10 } } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6, boxWidth: 10 } } } }
+    }));
+  }
+
+  // Pie chart — Countries
+  const countryCanvas = document.getElementById('chart-ig-countries');
+  if (countryCanvas && acc?.demographics?.countries?.length) {
+    const countries = acc.demographics.countries.slice(0, 8);
+    const countryColors = ['#22883e','#3a9e54','#5ab870','#7ed09a','#a8e4c0','#c8f0d8','#e0f7eb','#f0fbf4'];
+    relChartInstances.push(new Chart(countryCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: countries.map(c => `${c.country} ${c.pct}%`),
+        datasets: [{ data: countries.map(c => c.pct), backgroundColor: countryColors.slice(0, countries.length), borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6, boxWidth: 10 } } } }
     }));
   }
 }
@@ -3263,9 +3705,21 @@ function exportPerfPDF(mode, ids) {
     prefixedCharts.push(new Chart(igCv, { type:'bar', data:{labels,datasets:ds}, options:{responsive:true,animation:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}} }));
   }
 
+  // Doughnut gender
+  const genderCv = offscreen.querySelector('#pdf-chart-ig-gender');
+  const acc = latest.instagram?.account;
+  if (genderCv && acc?.demographics?.ageGender?.length) {
+    const ag = acc.demographics.ageGender;
+    const tH = +(ag.reduce((a,g)=>a+g.homens,0).toFixed(1));
+    const tM = +(ag.reduce((a,g)=>a+g.mulheres,0).toFixed(1));
+    const tNI = +(100-tH-tM).toFixed(1);
+    const gl = [`Homens ${tH}%`,`Mulheres ${tM}%`], gd = [tH,tM], gc = ['#3C71DD','#DD3C8C'];
+    if (tNI>0.5) { gl.push(`N/I ${tNI}%`); gd.push(tNI); gc.push('#cfc5b0'); }
+    prefixedCharts.push(new Chart(genderCv, { type:'doughnut', data:{labels:gl,datasets:[{data:gd,backgroundColor:gc,borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:true,animation:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6,boxWidth:10}}}} }));
+  }
+
   // Doughnut age
   const ageCv = offscreen.querySelector('#pdf-chart-ig-age');
-  const acc = latest.instagram?.account;
   if (ageCv && acc?.demographics?.ageGender?.length) {
     const ag = acc.demographics.ageGender;
     prefixedCharts.push(new Chart(ageCv, { type:'doughnut', data:{ labels:ag.map(a=>a.range), datasets:[{data:ag.map(a=>+(a.homens+a.mulheres).toFixed(1)),backgroundColor:['#DD3C8C','#E85D9F','#F280B4','#F7A3C8','#FACFDD','#FDE5EE'],borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'right',labels:{font:{size:10},padding:6,boxWidth:10}}}} }));
@@ -3276,6 +3730,13 @@ function exportPerfPDF(mode, ids) {
   if (cityCv && acc?.demographics?.cities?.length) {
     const cities = acc.demographics.cities.slice(0,8);
     prefixedCharts.push(new Chart(cityCv, { type:'doughnut', data:{ labels:cities.map(c=>c.city), datasets:[{data:cities.map(c=>c.pct),backgroundColor:['#6b48c8','#8b6ad8','#a88ce4','#c4afef','#ddd2f7','#ece5fa','#f3effc','#f9f7fe'],borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'right',labels:{font:{size:9},padding:4,boxWidth:8}}}} }));
+  }
+
+  // Doughnut countries
+  const countryCv = offscreen.querySelector('#pdf-chart-ig-countries');
+  if (countryCv && acc?.demographics?.countries?.length) {
+    const countries = acc.demographics.countries.slice(0,8);
+    prefixedCharts.push(new Chart(countryCv, { type:'doughnut', data:{ labels:countries.map(c=>c.country+' '+c.pct+'%'), datasets:[{data:countries.map(c=>c.pct),backgroundColor:['#22883e','#3a9e54','#5ab870','#7ed09a','#a8e4c0','#c8f0d8','#e0f7eb','#f0fbf4'],borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:true,animation:false,plugins:{legend:{position:'right',labels:{font:{size:9},padding:4,boxWidth:8}}}} }));
   }
 
   // FB daily line
@@ -3569,17 +4030,20 @@ function _processMassFiles(fileList) {
       const parsed = processCSVFile(text, file.name, relativePath);
 
       if (parsed.type !== 'unknown') {
-        const entry = {
-          file,
-          parsed,
-          clientId: parsed.matchedClientId || '',
-          clientName: parsed.extractedClient || '',
-          mes: parsed.extractedDate?.mes || 0,
-          ano: parsed.extractedDate?.ano || 0,
-          autoClient: !!parsed.matchedClientId,
-          autoDate: !!parsed.extractedDate
-        };
-        _massFiles.push(entry);
+        const splits = splitByMonth(parsed);
+        splits.forEach(p => {
+          if (p.type === 'unknown') return;
+          _massFiles.push({
+            file,
+            parsed: p,
+            clientId: p.matchedClientId || '',
+            clientName: p.extractedClient || '',
+            mes: p.extractedDate?.mes || 0,
+            ano: p.extractedDate?.ano || 0,
+            autoClient: !!p.matchedClientId,
+            autoDate: !!p.extractedDate
+          });
+        });
       }
 
       processed++;

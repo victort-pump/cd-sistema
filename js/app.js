@@ -7,13 +7,14 @@ const PAGE_META = {
   dashboard:  { group: 'Operação',     label: 'Dashboard' },
   tarefas:    { group: 'Operação',     label: 'Tarefas' },
   calendario: { group: 'Operação',     label: 'Calendário' },
-  framework:  { group: 'Operação',     label: 'Framework' },
-  equipe:     { group: 'Gestão',       label: 'Equipe' },
-  clientes:   { group: 'Gestão',       label: 'Clientes' },
-  health:     { group: 'Gestão',       label: 'Health Score' },
-  gerador:    { group: 'Ferramentas',  label: 'Criar Demandas' },
-  integracao: { group: 'Ferramentas',  label: 'ClickUp' },
-  relatorio:  { group: 'Ferramentas',  label: 'Relatórios' }
+  clientes:    { group: 'Gestão',       label: 'Clientes' },
+  performance: { group: 'Gestão',       label: 'Performance' },
+  health:      { group: 'Gestão',       label: 'Health Score' },
+  equipe:      { group: 'Gestão',       label: 'Equipe' },
+  framework:   { group: 'Ferramentas',  label: 'Framework' },
+  gerador:     { group: 'Ferramentas',  label: 'Criar Demandas' },
+  integracao:  { group: 'Ferramentas',  label: 'ClickUp' },
+  relatorio:   { group: 'Ferramentas',  label: 'Relatórios' }
 };
 
 function setPage(p) {
@@ -69,6 +70,7 @@ function renderPage(p) {
   else if (p==='integracao') renderIntegracao();
   else if (p==='health')     renderHealth();
   else if (p==='relatorio')  renderRelatorio();
+  else if (p==='performance') renderPerformancePage();
 }
 
 // =====================================================

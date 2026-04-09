@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CD Sistema — Agência</title>
-<link rel="stylesheet" href="styles.css?v=20260409r">
+<link rel="stylesheet" href="styles.css?v=20260410g">
 </head>
 <body>
 
@@ -42,30 +42,34 @@
         <span class="sidebar-icon">📅</span>
         <span class="sidebar-label">Calendário</span>
       </button>
-      <button class="sidebar-item" data-page="framework" onclick="setPage('framework')">
-        <span class="sidebar-icon">📐</span>
-        <span class="sidebar-label">Framework</span>
-      </button>
     </div>
 
     <div class="sidebar-group">
       <div class="sidebar-group-label">Gestão</div>
-      <button class="sidebar-item" data-page="equipe" onclick="setPage('equipe')">
-        <span class="sidebar-icon">👥</span>
-        <span class="sidebar-label">Equipe</span>
-      </button>
       <button class="sidebar-item" data-page="clientes" onclick="setPage('clientes')">
         <span class="sidebar-icon">🏢</span>
         <span class="sidebar-label">Clientes</span>
+      </button>
+      <button class="sidebar-item" data-page="performance" onclick="setPage('performance')">
+        <span class="sidebar-icon">📈</span>
+        <span class="sidebar-label">Performance</span>
       </button>
       <button class="sidebar-item" data-page="health" onclick="setPage('health')">
         <span class="sidebar-icon">❤️</span>
         <span class="sidebar-label">Health Score</span>
       </button>
+      <button class="sidebar-item" data-page="equipe" onclick="setPage('equipe')">
+        <span class="sidebar-icon">👥</span>
+        <span class="sidebar-label">Equipe</span>
+      </button>
     </div>
 
     <div class="sidebar-group">
       <div class="sidebar-group-label">Ferramentas</div>
+      <button class="sidebar-item" data-page="framework" onclick="setPage('framework')">
+        <span class="sidebar-icon">📐</span>
+        <span class="sidebar-label">Framework</span>
+      </button>
       <button class="sidebar-item" data-page="gerador" onclick="setPage('gerador')">
         <span class="sidebar-icon">✏️</span>
         <span class="sidebar-label">Criar Demandas</span>
@@ -73,10 +77,6 @@
       <button class="sidebar-item" data-page="integracao" onclick="setPage('integracao')">
         <span class="sidebar-icon">⚡</span>
         <span class="sidebar-label">ClickUp</span>
-      </button>
-      <button class="sidebar-item" data-page="relatorio" onclick="setPage('relatorio')">
-        <span class="sidebar-icon">📊</span>
-        <span class="sidebar-label">Relatórios</span>
       </button>
     </div>
   </div>
@@ -107,19 +107,14 @@
   <div id="dash-hoje"></div>
   <div class="grid grid-4 mb-20" id="kpi-cards"></div>
 
-  <div class="mb-20">
-    <div class="section-title">Metas da Semana</div>
-    <div id="metas-list"></div>
-  </div>
-
   <div class="grid grid-2 gap-16 mb-20">
     <div>
       <div class="section-title">Status dos Clientes</div>
       <div id="client-status-list"></div>
     </div>
     <div>
-      <div class="section-title">Fluxo de Aprovação</div>
-      <div id="approval-flow"></div>
+      <div class="section-title">Acesso Rápido</div>
+      <div id="dash-quick-access"></div>
     </div>
   </div>
 
@@ -190,12 +185,14 @@
     <div class="flex-center gap-8">
       <button class="filter-btn active" id="ctab-visao"  onclick="clientesTab('visao')">Visão Geral</button>
       <button class="filter-btn"        id="ctab-fluxo" onclick="clientesTab('fluxo')">Fluxo de Produção</button>
-      <button class="filter-btn"        id="ctab-performance" onclick="clientesTab('performance')">Performance</button>
       <button class="btn btn-ghost btn-sm" onclick="openModal('client')">+ Novo Cliente</button>
     </div>
   </div>
   <div id="clientes-tab"></div>
 </div>
+
+<!-- ====== PERFORMANCE ====== -->
+<div class="page" id="page-performance"></div>
 
 <!-- ====== FRAMEWORK ====== -->
 <div class="page" id="page-framework">
@@ -477,11 +474,11 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script src="js/data.js?v=20260409r"></script>
-<script src="js/utils.js?v=20260409r"></script>
-<script src="js/clickup.js?v=20260409r"></script>
-<script src="js/pages.js?v=20260409r"></script>
-<script src="js/relatorio.js?v=20260409r"></script>
-<script src="js/app.js?v=20260409r"></script>
+<script src="js/data.js?v=20260410g"></script>
+<script src="js/utils.js?v=20260410g"></script>
+<script src="js/clickup.js?v=20260410g"></script>
+<script src="js/pages.js?v=20260410g"></script>
+<script src="js/relatorio.js?v=20260410g"></script>
+<script src="js/app.js?v=20260410g"></script>
 </body>
 </html>

@@ -72,22 +72,22 @@ function renderDashboard() {
     </div>`;
 
   document.getElementById('kpi-cards').innerHTML = `
-    <div class="card">
+    <div class="card" style="cursor:pointer" onclick="setPage('tarefas')">
       <h3>Total de Tarefas</h3>
       <div class="kpi-value">${total}</div>
       <div class="kpi-sub">${done} concluídas</div>
     </div>
-    <div class="card">
+    <div class="card" style="cursor:pointer" onclick="setPage('tarefas')">
       <h3>Em Andamento</h3>
       <div class="kpi-value" style="color:var(--blue)">${inProg}</div>
       <div class="kpi-sub">produção ativa</div>
     </div>
-    <div class="card">
+    <div class="card" style="cursor:pointer" onclick="setPage('tarefas')">
       <h3>Atrasadas</h3>
       <div class="kpi-value" style="color:${over>0?'var(--red)':'var(--green)'}">${over}</div>
       <div class="kpi-sub">prazo vencido</div>
     </div>
-    <div class="card">
+    <div class="card" style="cursor:pointer" onclick="setPage('tarefas')">
       <h3>Revisões Médias</h3>
       <div class="kpi-value" style="color:${parseFloat(avgRev)>1.5?'var(--red)':'var(--green)'}">${avgRev}</div>
       <div class="kpi-sub">meta: &lt; 1.5</div>
@@ -167,7 +167,8 @@ function renderDashboard() {
       </div>
     </div>`;
   }
-  document.getElementById('approval-flow').innerHTML = ahtml||'<div class="empty-state">Nenhuma tarefa</div>';
+  const afEl = document.getElementById('approval-flow');
+  if (afEl) afEl.innerHTML = ahtml||'<div class="empty-state">Nenhuma tarefa</div>';
 
   // Week tasks
   const weekDates = getWeekDates(0);
@@ -175,15 +176,52 @@ function renderDashboard() {
     .sort((a,b) => (a.prazo||'9')>(b.prazo||'9')?1:-1);
   renderTaskTable(document.getElementById('dash-week-tasks'), weekTasks.slice(0,12));
 
-  // Metas
-  renderMetas();
+  // Acesso rápido (clientes recentes com relatórios)
+  const qaEl = document.getElementById('dash-quick-access');
+  if (qaEl) {
+    const recent = JSON.parse(localStorage.getItem('cd_recent_clients') || '[]');
+    const rels = typeof getRelatorios === 'function' ? getRelatorios() : [];
+    const allC = getClients();
+
+    if (recent.length && rels.length) {
+      qaEl.innerHTML = recent.map(id => {
+        const c = allC.find(cl => cl.id === id);
+        if (!c) return '';
+        const clientRels = rels.filter(r => r.clienteId === id).sort((a,b) => b.ano-a.ano || b.mes-a.mes);
+        const lastRel = clientRels[0];
+        const lastLabel = lastRel ? `${lastRel.mesLabel} ${lastRel.ano}` : '';
+        const platforms = [];
+        if (lastRel?.instagram?.feed || lastRel?.instagram?.stories) platforms.push('IG');
+        if (lastRel?.facebook?.posts || lastRel?.facebook?.videos) platforms.push('FB');
+        if (lastRel?.youtube?.tabela) platforms.push('YT');
+        if (lastRel?.tiktok?.overview) platforms.push('TK');
+
+        return `<div class="card mb-8" style="padding:10px 14px;cursor:pointer" onclick="_perfClienteId='${id}';setPage('performance')">
+          <div class="flex-between">
+            <div class="flex-center gap-8">
+              <span style="width:10px;height:10px;border-radius:50%;background:${c.cor};flex-shrink:0"></span>
+              <div>
+                <div style="font-size:13px;font-weight:700">${c.nome}</div>
+                <div class="text-xs text-muted">${lastLabel} · ${platforms.join(' ')}</div>
+              </div>
+            </div>
+            <span class="text-xs" style="color:var(--accent)">Ver →</span>
+          </div>
+        </div>`;
+      }).filter(Boolean).join('') || '<div class="text-sm text-faint">Acesse Performance para ver atalhos aqui</div>';
+    } else {
+      qaEl.innerHTML = '<div class="text-sm text-faint" style="padding:8px">Acesse <a href="#" onclick="setPage(\'performance\');return false" style="color:var(--accent)">Performance</a> para ver atalhos aqui</div>';
+    }
+  }
 }
 
 function renderMetas() {
   const metas = getMetas();
   const statusMap = { em_andamento:'tag-blue', concluido:'tag-green', pendente:'tag-gray' };
   const labelMap  = { em_andamento:'Em andamento', concluido:'Concluído', pendente:'Pendente' };
-  document.getElementById('metas-list').innerHTML = metas.map((m,i) => `
+  const metasEl = document.getElementById('metas-list');
+  if (!metasEl) return;
+  metasEl.innerHTML = metas.map((m,i) => `
     <div class="meta-card">
       <div class="meta-num">${i+1}</div>
       <div style="flex:1">
@@ -827,15 +865,15 @@ function confirmarNovoIntegrante() {
 let _clientesTab = 'visao';
 
 function clientesTab(tab) {
+  if (tab === 'performance') { setPage('performance'); return; }
   _clientesTab = tab;
-  ['visao','alocacao','fluxo','performance'].forEach(t => {
+  ['visao','alocacao','fluxo'].forEach(t => {
     const el = document.getElementById('ctab-'+t);
     if (el) el.classList.toggle('active', t===tab);
   });
-  if (tab==='visao')        renderClientesVisao();
-  if (tab==='alocacao')     renderClientesAlocacao();
-  if (tab==='fluxo')        renderClientesFluxo();
-  if (tab==='performance')  renderClientesPerformance();
+  if (tab==='visao')    renderClientesVisao();
+  if (tab==='alocacao') renderClientesAlocacao();
+  if (tab==='fluxo')    renderClientesFluxo();
 }
 
 function renderClientes() {
