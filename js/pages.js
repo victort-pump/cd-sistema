@@ -3923,6 +3923,49 @@ function _renderFechamento(cid) {
 
   html += `</div>`; // end card block 1
 
+  // ── Bloco AFEAL News (só para AF, logo após Leitura Automática) ──
+  if (cid === 'AF') {
+    const _an = _healthFormAfealNews || { disparoFeito: false, dataCorreta: false };
+    if (!_healthFormAfealNews) _healthFormAfealNews = _an;
+    const anScore = (_an.disparoFeito ? 5 : 0) + (_an.dataCorreta ? 5 : 0);
+    const anMax   = 10;
+    const anSt    = anScore >= 8 ? 'green' : anScore >= 5 ? 'yellow' : 'red';
+    const anSC    = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' };
+    html += `
+    <div class="card mb-16" style="border-left:3px solid var(--blue)">
+      <div class="flex-between mb-12">
+        <div class="section-title mb-0">📰 AFEAL News</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="hs-afeal-score" style="font-size:18px;font-weight:800;color:${anSC[anSt]}">${anScore}</span>
+          <span style="font-size:12px;color:var(--text3)">/${anMax}</span>
+          <span id="hs-afeal-dot" style="width:10px;height:10px;border-radius:50%;background:${anSC[anSt]}"></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.disparoFeito ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.disparoFeito ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
+          <input type="checkbox" id="hs-afeal-disparo" ${_an.disparoFeito ? 'checked' : ''}
+            onchange="_hsAfealNewsUpdate()"
+            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text)'}">Disparo realizado</div>
+            <div style="font-size:11px;color:var(--text3)">Confirma que o e-mail AFEAL News foi disparado esta semana</div>
+          </div>
+          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text3)'}">${_an.disparoFeito ? '+5' : '0'}</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.dataCorreta ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.dataCorreta ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
+          <input type="checkbox" id="hs-afeal-data" ${_an.dataCorreta ? 'checked' : ''}
+            onchange="_hsAfealNewsUpdate()"
+            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text)'}">Na data combinada</div>
+            <div style="font-size:11px;color:var(--text3)">O disparo foi feito no dia previsto (sem atraso)</div>
+          </div>
+          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text3)'}">${_an.dataCorreta ? '+5' : '0'}</span>
+        </label>
+      </div>
+    </div>`;
+  }
+
   // ── Bloco 2 ──
   html += `
     <div class="card mb-16">
@@ -4028,49 +4071,6 @@ function _renderFechamento(cid) {
       <div class="text-xs text-muted mt-8">Quando não avaliado, score máximo da semana = 90 pts.</div>
     </div>`;
   } // end if (!_isTrafOnly)
-
-  // ── Bloco AFEAL News (só para AF) ──
-  if (cid === 'AF') {
-    const _an = _healthFormAfealNews || { disparoFeito: false, dataCorreta: false };
-    if (!_healthFormAfealNews) _healthFormAfealNews = _an;
-    const anScore = (_an.disparoFeito ? 5 : 0) + (_an.dataCorreta ? 5 : 0);
-    const anMax   = 10;
-    const anSt    = anScore >= 8 ? 'green' : anScore >= 5 ? 'yellow' : 'red';
-    const anSC    = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' };
-    html += `
-    <div class="card mb-16" style="border-left:3px solid var(--blue)">
-      <div class="flex-between mb-12">
-        <div class="section-title mb-0">📰 AFEAL News</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="hs-afeal-score" style="font-size:18px;font-weight:800;color:${anSC[anSt]}">${anScore}</span>
-          <span style="font-size:12px;color:var(--text3)">/${anMax}</span>
-          <span id="hs-afeal-dot" style="width:10px;height:10px;border-radius:50%;background:${anSC[anSt]}"></span>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.disparoFeito ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.disparoFeito ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
-          <input type="checkbox" id="hs-afeal-disparo" ${_an.disparoFeito ? 'checked' : ''}
-            onchange="_hsAfealNewsUpdate()"
-            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
-          <div>
-            <div style="font-size:13px;font-weight:600;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text)'}">Disparo realizado</div>
-            <div style="font-size:11px;color:var(--text3)">Confirma que o e-mail AFEAL News foi disparado esta semana</div>
-          </div>
-          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text3)'}">${_an.disparoFeito ? '+5' : '0'}</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.dataCorreta ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.dataCorreta ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
-          <input type="checkbox" id="hs-afeal-data" ${_an.dataCorreta ? 'checked' : ''}
-            onchange="_hsAfealNewsUpdate()"
-            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
-          <div>
-            <div style="font-size:13px;font-weight:600;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text)'}">Na data combinada</div>
-            <div style="font-size:11px;color:var(--text3)">O disparo foi feito no dia previsto (sem atraso)</div>
-          </div>
-          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text3)'}">${_an.dataCorreta ? '+5' : '0'}</span>
-        </label>
-      </div>
-    </div>`;
-  }
 
   // ── Bloco 5 — Tráfego ──
   const _traf    = _healthFormTrafego;
