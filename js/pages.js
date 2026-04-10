@@ -3150,13 +3150,15 @@ function _hsTrafegoToggle(hasTraffic) {
     const sheetD = cid ? (gsGetData('semanal')[cid] || null) : null;
     if (!_healthFormTrafego) {
       _healthFormTrafego = {
-        metaPct:      sheetD?.metaPct      ?? '',
-        investimento: sheetD?.investimento ?? '',
-        leads:        sheetD?.leads        ?? '',
-        vendas:       sheetD?.vendas       ?? '',
-        cpl:          sheetD?.cpl          ?? '',
-        cac:          sheetD?.cac          ?? '',
-        meta:         sheetD?.meta         ?? ''
+        metaPct:        sheetD?.metaPct        ?? '',
+        investimento:   sheetD?.investimento   ?? '',
+        leads:          sheetD?.leads          ?? '',
+        vendas:         sheetD?.vendas         ?? '',
+        cpl:            sheetD?.cpl            ?? '',
+        cac:            sheetD?.cac            ?? '',
+        meta:           sheetD?.meta           ?? '',
+        performance:    sheetD?.performance    ?? '',
+        relacionamento: sheetD?.relacionamento ?? ''
       };
     }
     form.style.display = 'block';
@@ -3194,10 +3196,25 @@ function _hsTrafegoUpdateFromPct() {
 
 function _hsTrafegoSyncData() {
   if (!_healthFormTrafego) return;
-  ['investimento','leads','vendas','cpl','cac','meta'].forEach(f => {
+  ['investimento','leads','vendas','cpl','cac','meta','performance','relacionamento'].forEach(f => {
     const el = document.getElementById('hs-traf-' + f);
     if (el) _healthFormTrafego[f] = el.value;
   });
+}
+
+function _hsTrafScoreUpdate() {
+  if (!_healthFormTrafego) return;
+  const perfEl  = document.getElementById('hs-traf-performance');
+  const relacEl = document.getElementById('hs-traf-relacionamento');
+  const scoreEl = document.getElementById('hs-traf-sheet-score');
+  if (perfEl)  _healthFormTrafego.performance    = perfEl.value;
+  if (relacEl) _healthFormTrafego.relacionamento = relacEl.value;
+  const p = parseInt(perfEl?.value) || 0;
+  const r = parseInt(relacEl?.value) || 0;
+  const total = Math.min(p, 5) + Math.min(r, 5);
+  const st = total >= 8 ? 'var(--green)' : total >= 5 ? 'var(--yellow)' : 'var(--red)';
+  if (scoreEl) { scoreEl.textContent = total || '—'; scoreEl.style.color = total ? st : 'var(--text3)'; }
+  _atualizarScorePreview();
 }
 
 async function _hsSyncAndPopulateTrafego() {
@@ -3258,16 +3275,19 @@ async function _hsSyncAndPopulateTrafego() {
       _healthFormTrafego.leads        = sheetD.leads        || '';
       _healthFormTrafego.vendas       = sheetD.vendas       || '';
       _healthFormTrafego.cpl          = sheetD.cpl          || '';
-      _healthFormTrafego.cac          = sheetD.cac          || '';
-      _healthFormTrafego.meta         = sheetD.meta         || '';
+      _healthFormTrafego.cac            = sheetD.cac            || '';
+      _healthFormTrafego.meta           = sheetD.meta           || '';
+      _healthFormTrafego.performance    = sheetD.performance    ?? '';
+      _healthFormTrafego.relacionamento = sheetD.relacionamento ?? '';
 
       const pctEl = document.getElementById('hs-traf-metapct');
       if (pctEl) pctEl.value = sheetD.metaPct ?? '';
-      ['investimento','leads','vendas','cpl','cac','meta'].forEach(f => {
+      ['investimento','leads','vendas','cpl','cac','meta','performance','relacionamento'].forEach(f => {
         const el = document.getElementById('hs-traf-' + f);
         if (el) el.value = sheetD[f] || '';
       });
       _hsTrafegoUpdateFromPct();
+      _hsTrafScoreUpdate();
 
       // Update the sync date label
       const lblEl = document.getElementById('hs-traf-sync-label');
@@ -4138,6 +4158,35 @@ function _renderFechamento(cid) {
           </div>
         </div>
 
+        <!-- Performance + Relacionamento -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:10px;align-items:center;flex-wrap:wrap">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Performance</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="hs-traf-performance" min="0" max="5" value="${_traf?.performance ?? _sheetD?.performance ?? ''}"
+                oninput="_hsTrafScoreUpdate()"
+                style="width:50px;text-align:center;font-size:20px;font-weight:800;background:transparent;border:none;border-bottom:2px solid var(--border);outline:none;padding:0;color:var(--text)">
+              <span style="font-size:13px;color:var(--text3)">/5</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Relacionamento</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="hs-traf-relacionamento" min="0" max="5" value="${_traf?.relacionamento ?? _sheetD?.relacionamento ?? ''}"
+                oninput="_hsTrafScoreUpdate()"
+                style="width:50px;text-align:center;font-size:20px;font-weight:800;background:transparent;border:none;border-bottom:2px solid var(--border);outline:none;padding:0;color:var(--text)">
+              <span style="font-size:13px;color:var(--text3)">/5</span>
+            </div>
+          </div>
+          <div style="margin-left:auto;text-align:center">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Score Planilha</div>
+            <div style="display:flex;align-items:baseline;gap:3px;justify-content:center">
+              <span id="hs-traf-sheet-score" style="font-size:22px;font-weight:800;color:var(--text)">${((_traf?.performance ?? _sheetD?.performance ?? 0) + (_traf?.relacionamento ?? _sheetD?.relacionamento ?? 0)) || '—'}</span>
+              <span style="font-size:12px;color:var(--text3)">/10</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Dados complementares -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
           ${_trafDataFields.map(f => `<div>
@@ -4422,16 +4471,21 @@ function confirmarFechamento(cid) {
 
   const trafRec = _healthFormTrafego ? (() => {
     const _tr = calculateTrafegoScore(_healthFormTrafego.metaPct);
+    const perf  = parseInt(_healthFormTrafego.performance) || 0;
+    const relac = parseInt(_healthFormTrafego.relacionamento) || 0;
     return {
-      metaPct:      parseFloat(_healthFormTrafego.metaPct) || 0,
-      score:        _tr.score,
-      status:       _tr.status,
-      investimento: _healthFormTrafego.investimento || '',
-      leads:        _healthFormTrafego.leads || '',
-      vendas:       _healthFormTrafego.vendas || '',
-      cpl:          _healthFormTrafego.cpl || '',
-      cac:          _healthFormTrafego.cac || '',
-      meta:         _healthFormTrafego.meta || ''
+      metaPct:        parseFloat(_healthFormTrafego.metaPct) || 0,
+      score:          _tr.score,
+      status:         _tr.status,
+      performance:    perf,
+      relacionamento: relac,
+      sheetScore:     perf + relac,
+      investimento:   _healthFormTrafego.investimento || '',
+      leads:          _healthFormTrafego.leads || '',
+      vendas:         _healthFormTrafego.vendas || '',
+      cpl:            _healthFormTrafego.cpl || '',
+      cac:            _healthFormTrafego.cac || '',
+      meta:           _healthFormTrafego.meta || ''
     };
   })() : null;
 
