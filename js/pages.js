@@ -1700,6 +1700,7 @@ function renderIntegracao() {
           <div class="text-xs text-muted mt-4">Prazo anterior à sync parcial — podem ter sido removidas do ClickUp sem refletir aqui.</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="doSync(true)">&#8635; Sync global</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="_limparTarefasOrfas()">🗑 Limpar órfãs</button>
       </div>`;
     }
   }
@@ -1838,6 +1839,26 @@ function gsRemoveMap(name) {
   delete cfg.clientMap[name];
   gsSaveConfig(cfg);
   renderGsTrafegoPanel();
+}
+
+function _limparTarefasOrfas() {
+  const sync = cuGetLastSync();
+  if (!sync) return;
+  const lastSyncDate = new Date(sync.lastSync).toISOString().split('T')[0];
+  const allTasks = getTasks();
+  const ghosts = allTasks.filter(t =>
+    t.source === 'clickup' && t.clickupId &&
+    t.prazo && t.prazo < lastSyncDate &&
+    !['concluido','aprovado','descartado'].includes(t.status)
+  );
+  if (!ghosts.length) return showToast('Nenhuma tarefa órfã encontrada');
+  if (!confirm(`Remover ${ghosts.length} tarefa(s) não verificadas?\n\nEssas tarefas têm prazo anterior à última sync e podem não existir mais no ClickUp.`)) return;
+
+  const ghostIds = new Set(ghosts.map(t => t.id));
+  const cleaned = allTasks.filter(t => !ghostIds.has(t.id));
+  saveTasks(cleaned);
+  showToast(`${ghosts.length} tarefa(s) órfã(s) removidas`);
+  renderIntegracao();
 }
 
 function renderOrphans() {
@@ -2946,6 +2967,7 @@ let _healthFormPrevActions = [];       // ações anotadas na semana anterior
 let _healthFormPrevChecked = [];       // quais foram concluídas (booleans)
 let _healthFormTrafego     = null;     // null=sem tráfego | { metaPct, investimento, leads, vendas, cpl, cac, meta }
 let _healthFormCX          = null;     // null=sem CX | { rating: 1-5 }
+let _healthFormAfealNews   = null;     // null | { disparoFeito: bool, dataCorreta: bool }
 let _healthFormPostsList = { conclusao: [], status: [], implicita: [] };
 let _hsPostsHideTimer    = null;
 
@@ -3086,6 +3108,36 @@ function _hsRemoveCustomErrorType(idx) {
   _healthFormCustomErrorTypes.splice(idx, 1);
   const el = document.getElementById('hs-custom-error-list');
   if (el) el.innerHTML = _buildCustomErrorList();
+  _atualizarScorePreview();
+}
+
+// ── AFEAL News helper ────────────────────────────────
+function _hsAfealNewsUpdate() {
+  if (!_healthFormAfealNews) _healthFormAfealNews = { disparoFeito: false, dataCorreta: false };
+  _healthFormAfealNews.disparoFeito = !!document.getElementById('hs-afeal-disparo')?.checked;
+  _healthFormAfealNews.dataCorreta  = !!document.getElementById('hs-afeal-data')?.checked;
+  // Update badge in real-time
+  const score = (_healthFormAfealNews.disparoFeito ? 5 : 0) + (_healthFormAfealNews.dataCorreta ? 5 : 0);
+  const st    = score >= 8 ? 'green' : score >= 5 ? 'yellow' : 'red';
+  const colors = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' };
+  const badgeEl = document.getElementById('hs-afeal-score');
+  const dotEl   = document.getElementById('hs-afeal-dot');
+  if (badgeEl) { badgeEl.textContent = score; badgeEl.style.color = colors[st]; }
+  if (dotEl) dotEl.style.background = colors[st];
+  // Update checkbox labels
+  ['disparo','data'].forEach(key => {
+    const cb = document.getElementById('hs-afeal-' + key);
+    if (!cb) return;
+    const label = cb.closest('label');
+    if (!label) return;
+    const checked = cb.checked;
+    label.style.background = checked ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)';
+    label.style.borderColor = checked ? 'var(--green)' : 'var(--border)';
+    const pts = label.querySelector('span:last-child');
+    if (pts) { pts.textContent = checked ? '+5' : '0'; pts.style.color = checked ? 'var(--green)' : 'var(--text3)'; }
+    const title = label.querySelector('div > div:first-child');
+    if (title) title.style.color = checked ? 'var(--green)' : 'var(--text)';
+  });
   _atualizarScorePreview();
 }
 
@@ -3760,8 +3812,9 @@ function abrirFechamento(cid) {
     .sort((a, b) => b.weekRef.localeCompare(a.weekRef))[0];
   _healthFormPrevActions = prevRec?.nextActions || [];
   _healthFormPrevChecked = (_existingRec?.prevActionsChecked || _healthFormPrevActions.map(() => false));
-  _healthFormTrafego     = _existingRec?.trafego || null;
-  _healthFormCX          = _existingRec?.cx     || null;
+  _healthFormTrafego     = _existingRec?.trafego    || null;
+  _healthFormCX          = _existingRec?.cx        || null;
+  _healthFormAfealNews   = _existingRec?.afealNews || null;
 
   const reprovadas = clientTasks.filter(t => t.status === 'reprovado');
   _healthFormRejection = reprovadas.length === 0 ? 'none'
@@ -3783,6 +3836,7 @@ function fecharFechamento() {
   _healthFormPrevChecked      = [];
   _healthFormTrafego          = null;
   _healthFormCX               = null;
+  _healthFormAfealNews        = null;
   renderHealth();
 }
 
@@ -3974,6 +4028,49 @@ function _renderFechamento(cid) {
       <div class="text-xs text-muted mt-8">Quando não avaliado, score máximo da semana = 90 pts.</div>
     </div>`;
   } // end if (!_isTrafOnly)
+
+  // ── Bloco AFEAL News (só para AF) ──
+  if (cid === 'AF') {
+    const _an = _healthFormAfealNews || { disparoFeito: false, dataCorreta: false };
+    if (!_healthFormAfealNews) _healthFormAfealNews = _an;
+    const anScore = (_an.disparoFeito ? 5 : 0) + (_an.dataCorreta ? 5 : 0);
+    const anMax   = 10;
+    const anSt    = anScore >= 8 ? 'green' : anScore >= 5 ? 'yellow' : 'red';
+    const anSC    = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' };
+    html += `
+    <div class="card mb-16" style="border-left:3px solid var(--blue)">
+      <div class="flex-between mb-12">
+        <div class="section-title mb-0">📰 AFEAL News</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="hs-afeal-score" style="font-size:18px;font-weight:800;color:${anSC[anSt]}">${anScore}</span>
+          <span style="font-size:12px;color:var(--text3)">/${anMax}</span>
+          <span id="hs-afeal-dot" style="width:10px;height:10px;border-radius:50%;background:${anSC[anSt]}"></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.disparoFeito ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.disparoFeito ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
+          <input type="checkbox" id="hs-afeal-disparo" ${_an.disparoFeito ? 'checked' : ''}
+            onchange="_hsAfealNewsUpdate()"
+            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text)'}">Disparo realizado</div>
+            <div style="font-size:11px;color:var(--text3)">Confirma que o e-mail AFEAL News foi disparado esta semana</div>
+          </div>
+          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.disparoFeito ? 'var(--green)' : 'var(--text3)'}">${_an.disparoFeito ? '+5' : '0'}</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:8px;background:${_an.dataCorreta ? 'color-mix(in srgb,var(--green) 8%,var(--bg2))' : 'var(--bg3)'};border:1px solid ${_an.dataCorreta ? 'var(--green)' : 'var(--border)'};transition:all 0.15s">
+          <input type="checkbox" id="hs-afeal-data" ${_an.dataCorreta ? 'checked' : ''}
+            onchange="_hsAfealNewsUpdate()"
+            style="width:18px;height:18px;flex-shrink:0;margin:0;accent-color:var(--green)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text)'}">Na data combinada</div>
+            <div style="font-size:11px;color:var(--text3)">O disparo foi feito no dia previsto (sem atraso)</div>
+          </div>
+          <span style="margin-left:auto;font-weight:700;font-size:13px;color:${_an.dataCorreta ? 'var(--green)' : 'var(--text3)'}">${_an.dataCorreta ? '+5' : '0'}</span>
+        </label>
+      </div>
+    </div>`;
+  }
 
   // ── Bloco 5 — Tráfego ──
   const _traf    = _healthFormTrafego;
@@ -4368,6 +4465,7 @@ function confirmarFechamento(cid) {
     overrideReason: result.overrideReason,
     trafego: trafRec,
     cx: cxRec,
+    afealNews: (cid === 'AF' && _healthFormAfealNews) ? { ..._healthFormAfealNews, score: (_healthFormAfealNews.disparoFeito ? 5 : 0) + (_healthFormAfealNews.dataCorreta ? 5 : 0) } : null,
     consolidatedScore: calculateConsolidatedScore(
       _isTrafOnly ? null : { totalScore: result.totalScore },
       trafRec ? { score: trafRec.score } : null,
@@ -4449,6 +4547,7 @@ function salvarRascunhoFechamento(cid) {
       const _cr = calculateCXScore(_healthFormCX.rating);
       return { rating: _healthFormCX.rating, score: _cr.score, status: _cr.status };
     })() : null,
+    afealNews: (cid === 'AF' && _healthFormAfealNews) ? { ..._healthFormAfealNews, score: (_healthFormAfealNews.disparoFeito ? 5 : 0) + (_healthFormAfealNews.dataCorreta ? 5 : 0) } : null,
     nextActions:        [..._healthFormNextActions],
     prevActionsChecked: [..._healthFormPrevChecked]
   };
